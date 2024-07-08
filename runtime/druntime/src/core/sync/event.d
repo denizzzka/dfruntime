@@ -312,7 +312,7 @@ private:
     // auto-reset, initial state false
     Event ev1 = Event(false, false);
     assert(!ev1.wait(1.dur!"msecs"));
-    ev1.set();
+    ev1.setIfInitialized();
     assert(ev1.wait(1.dur!"msecs"));
     assert(!ev1.wait(1.dur!"msecs"));
 
