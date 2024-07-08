@@ -1,3 +1,3 @@
-project('druntime', ['d', 'c'])
+project('dfruntime', ['d', 'c'])
 
 subdir('runtime/druntime')
