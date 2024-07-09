@@ -300,7 +300,7 @@ set(OfficialPlatforms
 )
 
 # Tags matrix for them
-set(default_bunch   "global")
+set(default_bunch   "global,default_c_errno")
 set(TAGS_windows    "${default_bunch},windows")
 set(posix_bunch     "${default_bunch},posix,posix_threads")
 set(TAGS_osx        ${posix_bunch})
