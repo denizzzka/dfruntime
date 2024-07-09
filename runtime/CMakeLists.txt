@@ -1053,7 +1053,7 @@ macro(compile_testrunner d_flags is_shared target_suffix extra_dir_suffix)
     set(test_runner_bc "")
     dc("${RUNTIME_DIR}/src/test_runner.d"
        "${RUNTIME_DIR}/src"
-       "${d_flags}"
+       "${d_flags};-I${curr_tagged_import_dir}"
        "${PROJECT_BINARY_DIR}/objects-unittest${target_suffix}${extra_dir_suffix}"
        "OFF" # emit_bc
        "ON"  # all_at_once
