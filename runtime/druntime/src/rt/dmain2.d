@@ -85,11 +85,10 @@ version (CRuntime_Microsoft)
 
 __gshared string[] _d_args = null;
 
-//FIXME:
-//~ extern (C) string[] rt_args()
-//~ {
-    //~ return _d_args;
-//~ }
+extern (C) string[] rt_args()
+{
+    return _d_args;
+}
 
 // This variable is only ever set by a debugger on initialization so it should
 // be fine to leave it as __gshared.
