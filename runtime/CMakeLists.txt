@@ -155,6 +155,8 @@ message(STATUS "--  - Linking shared libraries (and test runners) with (C_SYSTEM
 
 get_directory_property(PROJECT_PARENT_DIR DIRECTORY ${PROJECT_SOURCE_DIR} PARENT_DIRECTORY)
 set(RUNTIME_DIR ${PROJECT_SOURCE_DIR}/druntime CACHE PATH "druntime root directory")
+set(RUNTIME_CFG_DIR ${RUNTIME_DIR}/config CACHE PATH "druntime internals config directory")
+cmake_path(NORMAL_PATH RUNTIME_CFG_DIR)
 set(PHOBOS2_DIR ${PROJECT_SOURCE_DIR}/phobos CACHE PATH "Phobos root directory")
 set(JITRT_DIR ${PROJECT_SOURCE_DIR}/jit-rt CACHE PATH "jit runtime root directory")
 
@@ -196,24 +198,34 @@ list(REMOVE_ITEM DRUNTIME_D
     ${DRUNTIME_D_OPENBSD} ${DRUNTIME_D_POSIX}   ${DRUNTIME_D_SOLARIS}
     ${DRUNTIME_D_WINDOWS}
 )
+
+# DRUNTIME_TARGET_NAME contains official target name which binary is currently produced
 if("${TARGET_SYSTEM}" MATCHES "Windows")
+    set(DRUNTIME_TARGET_NAME "windows")
     list(APPEND DRUNTIME_D ${DRUNTIME_D_WINDOWS})
 elseif("${TARGET_SYSTEM}" MATCHES "UNIX")
     list(APPEND DRUNTIME_D ${DRUNTIME_D_POSIX})
     if("${TARGET_SYSTEM}" MATCHES "APPLE")
+        set(DRUNTIME_TARGET_NAME "osx")
         list(APPEND DRUNTIME_D ${DRUNTIME_D_DARWIN})
     elseif("${TARGET_SYSTEM}" MATCHES "DragonFly")
+        set(DRUNTIME_TARGET_NAME "dragonfly")
         list(APPEND DRUNTIME_D ${DRUNTIME_D_DRAGONFLYBSD})
     elseif("${TARGET_SYSTEM}" MATCHES "FreeBSD")
+        set(DRUNTIME_TARGET_NAME "freebsd")
         list(APPEND DRUNTIME_D ${DRUNTIME_D_FREEBSD})
     elseif("${TARGET_SYSTEM}" MATCHES "Linux")
+        set(DRUNTIME_TARGET_NAME "linux")
         list(APPEND DRUNTIME_D ${DRUNTIME_D_LINUX})
         list(APPEND DRUNTIME_D ${DRUNTIME_D_BIONIC})
     elseif("${TARGET_SYSTEM}" MATCHES "NetBSD")
+        set(DRUNTIME_TARGET_NAME "netbsd")
         list(APPEND DRUNTIME_D ${DRUNTIME_D_NETBSD})
     elseif("${TARGET_SYSTEM}" MATCHES "OpenBSD")
+        set(DRUNTIME_TARGET_NAME "openbsd")
         list(APPEND DRUNTIME_D ${DRUNTIME_D_OPENBSD})
     elseif("${TARGET_SYSTEM}" MATCHES "SunOS")
+        set(DRUNTIME_TARGET_NAME "sunos")
         list(APPEND DRUNTIME_D ${DRUNTIME_D_SOLARIS})
     endif()
 endif()
@@ -231,6 +243,87 @@ set(DRUNTIME_ASM)
 if("${TARGET_SYSTEM}" MATCHES "UNIX")
     list(APPEND DRUNTIME_ASM ${RUNTIME_DIR}/src/core/threadasm.S ${RUNTIME_DIR}/src/ldc/eh_asm.S)
 endif()
+
+# generate additional tags-based lists of files
+set(TAGGED_COPY_LIST_FILE "${RUNTIME_DIR}/mak/TAGGED_COPY" CACHE FILEPATH "additional list of files for copying into imports")
+set(TAGGED_SRCS_FILE "${PROJECT_BINARY_DIR}/GEN_SRCS" CACHE FILEPATH "generated list of sources choised by tags")
+set(TAGGED_COPY_FILE "${PROJECT_BINARY_DIR}/GEN_COPY" CACHE FILEPATH "generated list of imports choised by tags")
+
+function(produce_tagged_hier TAGS import_dst_dir)
+    file(REMOVE ${TAGGED_SRCS_FILE})
+    file(REMOVE ${TAGGED_COPY_FILE})
+
+    list(JOIN TAGS "," TAGS_STR)
+
+    execute_process(
+        COMMAND "${RUNTIME_DIR}/parse_tagged_hier.sh"
+        ${TAGGED_SRCS_FILE}
+        ${TAGGED_COPY_LIST_FILE}
+        ${TAGGED_COPY_FILE}
+        "/"
+        ${TAGS_STR}
+        ${RUNTIME_CFG_DIR}
+        ECHO_OUTPUT_VARIABLE
+        ECHO_ERROR_VARIABLE
+        COMMAND_ERROR_IS_FATAL ANY
+    )
+
+    file(STRINGS ${TAGGED_SRCS_FILE} TAGGED_SRCS)
+    file(STRINGS ${TAGGED_COPY_FILE} TAGGED_COPY)
+
+    # returning for further use
+    set(TAGGED_SRCS ${TAGGED_SRCS} PARENT_SCOPE)
+
+    # copy imports to dedicated tagged imports dir
+    foreach(incl_file ${TAGGED_COPY})
+        cmake_path(NORMAL_PATH incl_file)
+        string(REPLACE ${RUNTIME_CFG_DIR} "" dst_file ${incl_file})
+
+        # strip first unused dirs from file path
+        execute_process(
+            COMMAND "echo" ${dst_file}
+            COMMAND "cut" -d / -f3-
+            OUTPUT_VARIABLE pretty_dst_path
+            ECHO_ERROR_VARIABLE
+            COMMAND_ERROR_IS_FATAL ANY
+        )
+
+        get_filename_component(path ${pretty_dst_path} PATH)
+        file(INSTALL ${incl_file} DESTINATION ${import_dst_dir}/${path})
+    endforeach()
+endfunction()
+
+# Official targets
+set(OfficialPlatforms
+    "windows" "osx" "dragonfly" "freebsd"
+    "linux" "netbsd" "openbsd" "sunos"
+)
+
+# Tags matrix for them
+set(TAGS_windows    "windows")
+set(TAGS_osx        "posix_threads")
+set(TAGS_dragonfly  "posix_threads")
+set(TAGS_freebsd    "posix_threads")
+set(TAGS_linux      "posix_threads")
+set(TAGS_netbsd     "posix_threads")
+set(TAGS_openbsd    "posix_threads")
+set(TAGS_sunos      "posix_threads")
+
+# Directory filled with auto-generated import files
+set(LDC_BUILD_IMPORT_DIR "${PROJECT_BINARY_DIR}/import")
+
+# Produce imports for all official platforms except current
+foreach(platform ${OfficialPlatforms})
+    if(NOT ${platform} EQUAL ${DRUNTIME_TARGET_NAME})
+        cmake_language(CALL produce_tagged_hier ${TAGS_${platform}} ${LDC_BUILD_IMPORT_DIR}/tagged_imports/${platform})
+    endif()
+endforeach()
+
+# Produce tagged sources and import/ for current target
+set(curr_tagged_import_dir ${LDC_BUILD_IMPORT_DIR}/tagged_imports/${DRUNTIME_TARGET_NAME})
+cmake_language(CALL produce_tagged_hier ${TAGS_${DRUNTIME_TARGET_NAME}} ${curr_tagged_import_dir})
+
+list(APPEND DRUNTIME_D ${TAGGED_SRCS})
 
 if(PHOBOS2_DIR)
     # Phobos D parts
@@ -287,19 +380,37 @@ endif()
 # LLD 8+ requires (new) `--export-dynamic` for WebAssembly (https://github.com/ldc-developers/ldc/issues/3023).
 set(WASM_DEFAULT_LDC_SWITCHES "${WASM_DEFAULT_LDC_SWITCHES}\n        \"-L--export-dynamic\",")
 
-# Directory filled with auto-generated import files
-set(LDC_BUILD_IMPORT_DIR "${PROJECT_BINARY_DIR}/import")
-
 # Only generate the config files if this CMake project is embedded in the LDC CMake project.
 if(LDC_EXE)
+    # imports for building druntime itself
+    set(CONF_IMPORTS
+        -I${RUNTIME_DIR}/src
+        -I${LDC_BUILD_IMPORT_DIR}
+        -I${JITRT_DIR}/d
+    )
+
     if(PHOBOS2_DIR)
         set(CONFIG_NAME ${LDC_EXE}_phobos)
+        list(APPEND CONF_IMPORTS "-I${PHOBOS2_DIR}")
     else()
         set(CONFIG_NAME ${LDC_EXE})
     endif()
+
+    list(JOIN CONF_IMPORTS "\", \"" CONF_IMPORTS)
+
+    # Adding a duplicating part of config file
+    set(common_path ${PROJECT_BINARY_DIR}/common.conf)
+    configure_file(${PROJECT_PARENT_DIR}/common.conf.in ${common_path} @ONLY)
+    file(READ ${common_path} COMMON_CONF_LINES)
+
     set(conf_path         ${PROJECT_BINARY_DIR}/../bin/${LDC_EXE}.conf)
     set(install_conf_path ${PROJECT_BINARY_DIR}/../bin/${LDC_EXE}_install.conf)
     configure_file(${PROJECT_PARENT_DIR}/${CONFIG_NAME}.conf.in ${conf_path} @ONLY)
+
+    # import for typical compiler usage
+    set(CONF_IMPORTS "-I${INCLUDE_INSTALL_DIR}")
+    configure_file(${PROJECT_PARENT_DIR}/common.conf.in ${common_path} @ONLY)
+    file(READ ${common_path} COMMON_INSTALL_CONF_LINES)
     configure_file(${PROJECT_PARENT_DIR}/${LDC_EXE}_install.conf.in ${install_conf_path} @ONLY)
 
     # macOS has fat libraries; otherwise, append a separate config file section for the
@@ -534,8 +645,8 @@ macro(compile_druntime d_flags lib_suffix path_suffix emit_bc all_at_once single
         set(single_obj_name "")
     endif()
     dc("${DRUNTIME_D}"
-       "${RUNTIME_DIR}/src"
-       "-conf=;${d_flags};${DRUNTIME_EXTRA_FLAGS};-I${RUNTIME_DIR}/src;-I${LDC_BUILD_IMPORT_DIR}"
+       "${RUNTIME_DIR}"
+       "-conf=;${d_flags};${DRUNTIME_EXTRA_FLAGS};-I${RUNTIME_DIR}/src;-I${curr_tagged_import_dir}"
        "${PROJECT_BINARY_DIR}/objects${target_suffix}"
        "${emit_bc}"
        "${all_at_once}"
@@ -746,7 +857,7 @@ macro(build_runtime_variant d_flags c_flags ld_flags lib_suffix path_suffix emit
                          "${lib_suffix}${SHARED_LIB_SUFFIX}" "${path_suffix}"
                          "OFF" "${all_d_files_at_once}" "OFF" druntime_o druntime_bc)
 
-        set(rt_dso_o "${PROJECT_BINARY_DIR}/objects${target_suffix}/rt/dso${CMAKE_C_OUTPUT_EXTENSION}")
+        set(rt_dso_o "${PROJECT_BINARY_DIR}/objects${target_suffix}/src/rt/dso${CMAKE_C_OUTPUT_EXTENSION}")
 
         # compile Phobos with public visibility (and preferably to a single object file)
         if(phobos2_common STREQUAL "")
@@ -883,7 +994,12 @@ if(PHOBOS2_DIR)
     install(DIRECTORY ${PHOBOS2_DIR}/etc DESTINATION ${INCLUDE_INSTALL_DIR} FILES_MATCHING PATTERN "*.d")
 endif()
 install(FILES ${GCCBUILTINS} DESTINATION ${INCLUDE_INSTALL_DIR}/ldc)
-
+if(DRUNTIME_TARGET_NAME)
+    # Assumed build for an official platform - copying all imports
+    install(DIRECTORY ${LDC_BUILD_IMPORT_DIR}/tagged_imports/ DESTINATION ${INCLUDE_INSTALL_DIR}/platforms/)
+else()
+    install(DIRECTORY ${curr_tagged_import_dir} DESTINATION ${INCLUDE_INSTALL_DIR})
+endif()
 
 #
 # Test targets.
@@ -947,7 +1063,7 @@ macro(compile_testrunner d_flags is_shared target_suffix extra_dir_suffix)
 
     if("${is_shared}" STREQUAL "ON")
         # also link-in special rt.dso druntime module
-        list(APPEND test_runner_o ${PROJECT_BINARY_DIR}/objects-unittest${target_suffix}/rt/dso${CMAKE_C_OUTPUT_EXTENSION})
+        list(APPEND test_runner_o ${PROJECT_BINARY_DIR}/objects-unittest${target_suffix}/src/rt/dso${CMAKE_C_OUTPUT_EXTENSION})
     endif()
 endmacro()
 
@@ -1066,7 +1182,7 @@ add_custom_target(all-test-runners DEPENDS ${_GLOBAL_TESTRUNNERS})
 
 macro(file_to_module_name file_name out_module_name)
     string(REPLACE ${PROJECT_SOURCE_DIR}/ "" stripped ${file_name})
-    string(REPLACE "druntime/src/" "" stripped ${stripped})
+    string(REPLACE "druntime/" "" stripped ${stripped})
     string(REPLACE "phobos/" "" stripped ${stripped})
     string(REPLACE ".d" "" stripped ${stripped})
     string(REPLACE "/" "." module ${stripped})

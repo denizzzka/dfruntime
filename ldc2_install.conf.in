@@ -22,7 +22,7 @@ default:
     ];
     // default switches appended after all explicit command-line switches
     post-switches = [
-        "-I@INCLUDE_INSTALL_DIR@",
+        "@CONF_IMPORTS@"
     ];
     // default directories to be searched for libraries when linking
     lib-dirs = [
@@ -32,10 +32,4 @@ default:
     rpath = "@SHARED_LIBS_INSTALL_RPATH@";
 };
 
-"^wasm(32|64)-":
-{
-    switches = [
-        "-defaultlib=",@WASM_DEFAULT_LDC_SWITCHES@
-    ];
-    lib-dirs = [];
-};
+@COMMON_INSTALL_CONF_LINES@

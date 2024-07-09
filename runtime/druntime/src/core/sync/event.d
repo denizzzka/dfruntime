@@ -57,6 +57,7 @@ struct Event
 {
 nothrow @nogc:
     private EventAwaiter m_event;
+    private bool m_initalized;
 
     /**
      * Creates an event object.
@@ -79,10 +80,11 @@ nothrow @nogc:
      */
     void initialize(bool manualReset, bool initialState)
     {
-        if (!m_event.initialized)
+        if (!m_initalized)
         {
             auto ea = EventAwaiter(manualReset, initialState);
             move(ea, m_event);
+            m_initalized = true;
         }
     }
 
@@ -101,7 +103,8 @@ nothrow @nogc:
     */
     void terminate()
     {
-        destroy(m_event);
+        auto ea = EventAwaiter.init;
+        move(ea, m_event);
     }
 
     deprecated ("Use setIfInitialized() instead") void set()
@@ -112,14 +115,15 @@ nothrow @nogc:
     /// Set the event to "signaled", so that waiting clients are resumed
     void setIfInitialized()
     {
-        if(m_event.initialized)
+        if(m_initalized)
             m_event.set();
     }
 
     /// Reset the event manually
     void reset()
     {
-        m_event.reset();
+        if (m_initalized)
+            m_event.reset();
     }
 
     /**
@@ -130,6 +134,9 @@ nothrow @nogc:
      */
     bool wait()
     {
+        if (!m_initalized)
+            return false;
+
         return m_event.wait();
     }
 
@@ -144,6 +151,9 @@ nothrow @nogc:
      */
     bool wait(Duration tmout)
     {
+        if (!m_initalized)
+            return false;
+
         return m_event.wait(tmout);
     }
 }
