@@ -11,30 +11,9 @@
  */
 module core.sync.event;
 
-version (Windows)
-{
-    import core.sys.windows.basetsd /+: HANDLE +/;
-    import core.sys.windows.winerror /+: WAIT_TIMEOUT +/;
-    import core.sys.windows.winbase /+: CreateEvent, CloseHandle, SetEvent, ResetEvent,
-        WaitForSingleObject, INFINITE, WAIT_OBJECT_0+/;
-}
-else version (Posix)
-{
-    import core.sys.posix.pthread;
-    import core.sys.posix.sys.types;
-    import core.sys.posix.time;
-}
-else version (DruntimeAbstractRt)
-{
-    public import external.core.event : Event;
-}
-else
-{
-    static assert(false, "Platform not supported");
-}
-
+import core.sync.event_awaiter;
+import core.lifetime : move;
 import core.time;
-import core.internal.abort : abort;
 
 /**
  * represents an event. Clients of an event are suspended while waiting
@@ -77,6 +56,8 @@ else
 struct Event
 {
 nothrow @nogc:
+    private EventAwaiter m_event;
+
     /**
      * Creates an event object.
      *
@@ -98,39 +79,10 @@ nothrow @nogc:
      */
     void initialize(bool manualReset, bool initialState)
     {
-        version (Windows)
+        if (!m_event.initialized)
         {
-            if (m_event)
-                return;
-            m_event = CreateEvent(null, manualReset, initialState, null);
-            m_event || abort("Error: CreateEvent failed.");
-        }
-        else version (Posix)
-        {
-            if (m_initalized)
-                return;
-            pthread_mutex_init(cast(pthread_mutex_t*) &m_mutex, null) == 0 ||
-                abort("Error: pthread_mutex_init failed.");
-            static if ( is( typeof( pthread_condattr_setclock ) ) )
-            {
-                pthread_condattr_t attr = void;
-                pthread_condattr_init(&attr) == 0 ||
-                    abort("Error: pthread_condattr_init failed.");
-                pthread_condattr_setclock(&attr, CLOCK_MONOTONIC) == 0 ||
-                    abort("Error: pthread_condattr_setclock failed.");
-                pthread_cond_init(&m_cond, &attr) == 0 ||
-                    abort("Error: pthread_cond_init failed.");
-                pthread_condattr_destroy(&attr) == 0 ||
-                    abort("Error: pthread_condattr_destroy failed.");
-            }
-            else
-            {
-                pthread_cond_init(&m_cond, null) == 0 ||
-                    abort("Error: pthread_cond_init failed.");
-            }
-            m_state = initialState;
-            m_manualReset = manualReset;
-            m_initalized = true;
+            auto ea = EventAwaiter(manualReset, initialState);
+            move(ea, m_event);
         }
     }
 
@@ -149,23 +101,7 @@ nothrow @nogc:
     */
     void terminate()
     {
-        version (Windows)
-        {
-            if (m_event)
-                CloseHandle(m_event);
-            m_event = null;
-        }
-        else version (Posix)
-        {
-            if (m_initalized)
-            {
-                pthread_mutex_destroy(&m_mutex) == 0 ||
-                    abort("Error: pthread_mutex_destroy failed.");
-                pthread_cond_destroy(&m_cond) == 0 ||
-                    abort("Error: pthread_cond_destroy failed.");
-                m_initalized = false;
-            }
-        }
+        destroy(m_event);
     }
 
     deprecated ("Use setIfInitialized() instead") void set()
@@ -176,40 +112,14 @@ nothrow @nogc:
     /// Set the event to "signaled", so that waiting clients are resumed
     void setIfInitialized()
     {
-        version (Windows)
-        {
-            if (m_event)
-                SetEvent(m_event);
-        }
-        else version (Posix)
-        {
-            if (m_initalized)
-            {
-                pthread_mutex_lock(&m_mutex);
-                m_state = true;
-                pthread_cond_broadcast(&m_cond);
-                pthread_mutex_unlock(&m_mutex);
-            }
-        }
+        if(m_event.initialized)
+            m_event.set();
     }
 
     /// Reset the event manually
     void reset()
     {
-        version (Windows)
-        {
-            if (m_event)
-                ResetEvent(m_event);
-        }
-        else version (Posix)
-        {
-            if (m_initalized)
-            {
-                pthread_mutex_lock(&m_mutex);
-                m_state = false;
-                pthread_mutex_unlock(&m_mutex);
-            }
-        }
+        m_event.reset();
     }
 
     /**
@@ -220,14 +130,7 @@ nothrow @nogc:
      */
     bool wait()
     {
-        version (Windows)
-        {
-            return m_event && WaitForSingleObject(m_event, INFINITE) == WAIT_OBJECT_0;
-        }
-        else version (Posix)
-        {
-            return wait(Duration.max);
-        }
+        return m_event.wait();
     }
 
     /**
@@ -241,68 +144,7 @@ nothrow @nogc:
      */
     bool wait(Duration tmout)
     {
-        version (Windows)
-        {
-            if (!m_event)
-                return false;
-
-            auto maxWaitMillis = dur!("msecs")(uint.max - 1);
-
-            while (tmout > maxWaitMillis)
-            {
-                auto res = WaitForSingleObject(m_event, uint.max - 1);
-                if (res != WAIT_TIMEOUT)
-                    return res == WAIT_OBJECT_0;
-                tmout -= maxWaitMillis;
-            }
-            auto ms = cast(uint)(tmout.total!"msecs");
-            return WaitForSingleObject(m_event, ms) == WAIT_OBJECT_0;
-        }
-        else version (Posix)
-        {
-            if (!m_initalized)
-                return false;
-
-            pthread_mutex_lock(&m_mutex);
-
-            int result = 0;
-            if (!m_state)
-            {
-                if (tmout == Duration.max)
-                {
-                    result = pthread_cond_wait(&m_cond, &m_mutex);
-                }
-                else
-                {
-                    import core.sync.config;
-
-                    timespec t = void;
-                    mktspec(t, tmout);
-
-                    result = pthread_cond_timedwait(&m_cond, &m_mutex, &t);
-                }
-            }
-            if (result == 0 && !m_manualReset)
-                m_state = false;
-
-            pthread_mutex_unlock(&m_mutex);
-
-            return result == 0;
-        }
-    }
-
-private:
-    version (Windows)
-    {
-        HANDLE m_event;
-    }
-    else version (Posix)
-    {
-        pthread_mutex_t m_mutex;
-        pthread_cond_t m_cond;
-        bool m_initalized;
-        bool m_state;
-        bool m_manualReset;
+        return m_event.wait(tmout);
     }
 }
 
