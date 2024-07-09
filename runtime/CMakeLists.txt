@@ -300,8 +300,9 @@ set(OfficialPlatforms
 )
 
 # Tags matrix for them
-set(TAGS_windows    "windows")
-set(posix_bunch     "posix,posix_threads")
+set(default_bunch   "global")
+set(TAGS_windows    "${default_bunch},windows")
+set(posix_bunch     "${default_bunch},posix,posix_threads")
 set(TAGS_osx        ${posix_bunch})
 set(TAGS_dragonfly  ${posix_bunch})
 set(TAGS_freebsd    ${posix_bunch})

@@ -1,2 +1,3 @@
+core\internal\abort.d
 core\internal\print_err.d
 core\sync\event_awaiter.d
