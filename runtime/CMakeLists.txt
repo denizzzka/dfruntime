@@ -301,13 +301,14 @@ set(OfficialPlatforms
 
 # Tags matrix for them
 set(TAGS_windows    "windows")
-set(TAGS_osx        "posix_threads")
-set(TAGS_dragonfly  "posix_threads")
-set(TAGS_freebsd    "posix_threads")
-set(TAGS_linux      "posix_threads")
-set(TAGS_netbsd     "posix_threads")
-set(TAGS_openbsd    "posix_threads")
-set(TAGS_sunos      "posix_threads")
+set(posix_bunch     "posix,posix_threads")
+set(TAGS_osx        ${posix_bunch})
+set(TAGS_dragonfly  ${posix_bunch})
+set(TAGS_freebsd    ${posix_bunch})
+set(TAGS_linux      ${posix_bunch})
+set(TAGS_netbsd     ${posix_bunch})
+set(TAGS_openbsd    ${posix_bunch})
+set(TAGS_sunos      ${posix_bunch})
 
 # Directory filled with auto-generated import files
 set(LDC_BUILD_IMPORT_DIR "${PROJECT_BINARY_DIR}/import")
