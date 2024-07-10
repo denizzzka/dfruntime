@@ -229,6 +229,7 @@ elseif("${TARGET_SYSTEM}" MATCHES "UNIX")
         list(APPEND DRUNTIME_D ${DRUNTIME_D_SOLARIS})
     endif()
 elseif(${TARGET_SYSTEM} STREQUAL "EXTERNAL")
+    #TODO: rework: use TARGET_SYSTEM as name and detect external target by definition of EXTERNAL_TAGS
     if(NOT DEFINED EXTERNAL_NAME)
         message(FATAL_ERROR "External target: please define EXTERNAL_NAME variable")
     endif()
