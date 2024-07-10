@@ -8,6 +8,7 @@ DST_COPY_FILE=$3
 IMPDIR=$4
 TAGS=$5
 SRC_DIR=$6
+[ -v 7 ] && SRC_DIR_ADDITIONAL=$7
 
 if [[ ! -d ${SRC_DIR} ]]; then
     echo "Tags dir '${SRC_DIR}' not found" >&2
@@ -25,12 +26,14 @@ echo -e "\nTags will be applied: $TAGS"
 
 APPLIED=""
 
+WARN_ACCUM=""
+
 function applyTaggedFiles {
     TAG=$1
-    SRC_TAG_DIR=${SRC_DIR}/${TAG}
+    SRC_TAG_DIR=$2/${TAG}
 
     if [[ ! -d ${SRC_TAG_DIR} ]]; then
-        echo "Warning: tag '${TAG}' doesn't corresponds to any subdirectory inside of '${SRC_DIR}', skip" >&2
+        WARN_ACCUM+="Warning: tag '${TAG}' doesn't corresponds to any subdirectory inside of '$2', skip\n"
     else
         SRC_FILES_LIST+=($(find ${SRC_TAG_DIR} -type f ))
 
@@ -38,15 +41,29 @@ function applyTaggedFiles {
         MAYBE_COPY_LIST+=($(find * -type f ))
         popd > /dev/null
     fi
-
-    APPLIED+=" $TAG"
-
-    echo "Currently applied tags:$APPLIED"
 }
 
 for tag in "${TAGS_LIST[@]}"
 do
-    applyTaggedFiles ${tag}
+    WARN_ACCUM=""
+
+    applyTaggedFiles ${tag} ${SRC_DIR}
+
+    if [ -v SRC_DIR_ADDITIONAL ]; then
+        applyTaggedFiles ${tag} ${SRC_DIR_ADDITIONAL}
+
+        if [[ $(echo ${WARN_ACCUM} | grep -c '^') -gt 1 ]]; then
+            echo -ne "2: ${WARN_ACCUM}" >&2
+        fi
+    else
+        if [[ $(echo ${WARN_ACCUM} | grep -c '^') -gt 0 ]]; then
+            echo -ne "1: ${WARN_ACCUM}" >&2
+        fi
+    fi
+
+    APPLIED+=" $tag"
+
+    echo "Currently applied tags:$APPLIED"
 done
 
 LINES_TO_COPY=$(grep -v '^$' ${SRC_COPY_FILE} | sort | uniq | wc -l)
