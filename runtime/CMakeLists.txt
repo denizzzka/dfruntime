@@ -241,7 +241,6 @@ elseif(${TARGET_SYSTEM} STREQUAL "EXTERNAL")
 
     set(DRUNTIME_TARGET_NAME ${EXTERNAL_NAME})
     set(TAGS_${EXTERNAL_NAME} ${EXTERNAL_TAGS})
-    #~ cmake_path(RELATIVE_PATH EXTERNAL_PATH)
     set(EXTERNAL_CFG_DIR ${RUNTIME_DIR}/external_config)
     file(REMOVE_RECURSE ${EXTERNAL_CFG_DIR})
     file(COPY ${EXTERNAL_PATH}/ DESTINATION ${EXTERNAL_CFG_DIR})
@@ -296,7 +295,10 @@ function(produce_tagged_hier TAGS import_dst_dir)
     foreach(incl_file ${TAGGED_COPY})
         cmake_path(NORMAL_PATH incl_file)
         string(REPLACE ${RUNTIME_CFG_DIR} "" dst_file_tmp ${incl_file})
-        string(REPLACE ${EXTERNAL_CFG_DIR} "" dst_file ${dst_file_tmp})
+
+        if(DEFINED EXTERNAL_CFG_DIR)
+            string(REPLACE ${EXTERNAL_CFG_DIR} "" dst_file ${dst_file_tmp})
+        endif()
 
         # strip first unused dirs from file path
         execute_process(
