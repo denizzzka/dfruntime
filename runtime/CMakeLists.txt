@@ -228,6 +228,16 @@ elseif("${TARGET_SYSTEM}" MATCHES "UNIX")
         set(DRUNTIME_TARGET_NAME "sunos")
         list(APPEND DRUNTIME_D ${DRUNTIME_D_SOLARIS})
     endif()
+elseif(${TARGET_SYSTEM} STREQUAL "EXTERNAL")
+    if(NOT DEFINED EXTERNAL_NAME)
+        message(FATAL_ERROR "External target: please define EXTERNAL_NAME variable")
+    endif()
+    if(NOT DEFINED EXTERNAL_TAGS)
+        message(FATAL_ERROR "External target: please define TAGS variable")
+    endif()
+
+    set(DRUNTIME_TARGET_NAME ${EXTERNAL_NAME})
+    set(TAGS_${EXTERNAL_NAME} ${EXTERNAL_TAGS})
 endif()
 
 # druntime C parts
