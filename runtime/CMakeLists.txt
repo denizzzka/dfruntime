@@ -298,6 +298,8 @@ function(produce_tagged_hier TAGS import_dst_dir)
 
         if(DEFINED EXTERNAL_CFG_DIR)
             string(REPLACE ${EXTERNAL_CFG_DIR} "" dst_file ${dst_file_tmp})
+        else()
+            set(dst_file ${dst_file_tmp})
         endif()
 
         # strip first unused dirs from file path
