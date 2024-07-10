@@ -228,6 +228,22 @@ elseif("${TARGET_SYSTEM}" MATCHES "UNIX")
         set(DRUNTIME_TARGET_NAME "sunos")
         list(APPEND DRUNTIME_D ${DRUNTIME_D_SOLARIS})
     endif()
+elseif(${TARGET_SYSTEM} STREQUAL "EXTERNAL")
+    if(NOT DEFINED EXTERNAL_NAME)
+        message(FATAL_ERROR "External target: please define EXTERNAL_NAME variable")
+    endif()
+    if(NOT DEFINED EXTERNAL_TAGS)
+        message(FATAL_ERROR "External target: please define EXTERNAL_TAGS variable")
+    endif()
+    if(NOT DEFINED EXTERNAL_PATH)
+        message(FATAL_ERROR "External target: please define EXTERNAL_PATH variable (absolute path)")
+    endif()
+
+    set(DRUNTIME_TARGET_NAME ${EXTERNAL_NAME})
+    set(TAGS_${EXTERNAL_NAME} ${EXTERNAL_TAGS})
+    set(EXTERNAL_CFG_DIR ${RUNTIME_DIR}/external_config)
+    file(REMOVE_RECURSE ${EXTERNAL_CFG_DIR})
+    file(COPY ${EXTERNAL_PATH}/ DESTINATION ${EXTERNAL_CFG_DIR})
 endif()
 
 # druntime C parts
@@ -263,6 +279,7 @@ function(produce_tagged_hier TAGS import_dst_dir)
         "/"
         ${TAGS_STR}
         ${RUNTIME_CFG_DIR}
+        ${EXTERNAL_CFG_DIR}
         ECHO_OUTPUT_VARIABLE
         ECHO_ERROR_VARIABLE
         COMMAND_ERROR_IS_FATAL ANY
@@ -277,7 +294,13 @@ function(produce_tagged_hier TAGS import_dst_dir)
     # copy imports to dedicated tagged imports dir
     foreach(incl_file ${TAGGED_COPY})
         cmake_path(NORMAL_PATH incl_file)
-        string(REPLACE ${RUNTIME_CFG_DIR} "" dst_file ${incl_file})
+        string(REPLACE ${RUNTIME_CFG_DIR} "" dst_file_tmp ${incl_file})
+
+        if(DEFINED EXTERNAL_CFG_DIR)
+            string(REPLACE ${EXTERNAL_CFG_DIR} "" dst_file ${dst_file_tmp})
+        else()
+            set(dst_file ${dst_file_tmp})
+        endif()
 
         # strip first unused dirs from file path
         execute_process(
