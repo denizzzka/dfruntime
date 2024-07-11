@@ -13,7 +13,7 @@
  * Standards: ISO/IEC 9899:1999 (E)
  */
 
-module core.stdc.stdio;
+module core.stdc.stdio_details;
 
 version (OSX)
     version = Darwin;

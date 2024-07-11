@@ -3,7 +3,7 @@ core\internal\print_err.d
 core\stdc\errno.d
 core\stdc\stddef.d
 core\stdc\stdint.d
-core\stdc\stdio.d
+core\stdc\stdio_details.d
 core\stdc\stdlib_details.d
 core\stdc\time_impl.d
 core\stdc\wchar_.d

@@ -1,4 +1,4 @@
-module core.stdc.stdio;
+module core.stdc.stdio_details;
 
 import core.stdc.config: c_long;
 
@@ -48,6 +48,6 @@ enum
 pragma(printf)
 extern(C) int snprintf(scope char* s, size_t n, scope const char* format, ...);
 
-///
-pragma(printf)
-extern(C) int sprintf(scope char* s, scope const char* format, scope const ...);
+//~ ///
+//~ pragma(printf)
+//~ extern(C) int sprintf(scope char* s, scope const char* format, scope const ...);
