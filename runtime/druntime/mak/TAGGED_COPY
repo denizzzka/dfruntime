@@ -8,3 +8,4 @@ core\stdc\stdlib_details.d
 core\stdc\time_impl.d
 core\stdc\wchar_.d
 core\sync\event_awaiter.d
+core\thread\types.d
