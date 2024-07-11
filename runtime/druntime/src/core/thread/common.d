@@ -362,3 +362,9 @@ private extern(D) void* getStackTop() nothrow @nogc
     else
         static assert(false, "Architecture not supported.");
 }
+
+//
+// exposed by compiler runtime
+//
+extern (C) void  rt_moduleTlsCtor();
+extern (C) void  rt_moduleTlsDtor();

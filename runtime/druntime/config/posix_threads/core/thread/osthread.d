@@ -2167,13 +2167,6 @@ else
     static assert( false, "Unknown threading implementation." );
 }
 
-//
-// exposed by compiler runtime
-//
-extern (C) void  rt_moduleTlsCtor();
-extern (C) void  rt_moduleTlsDtor();
-
-
 ///////////////////////////////////////////////////////////////////////////////
 // lowlovel threading support
 ///////////////////////////////////////////////////////////////////////////////
