@@ -13,7 +13,7 @@
 module core.thread.osthread;
 
 import core.thread.threadbase;
-import core.thread.common;
+public import core.thread.common;
 import core.thread.context;
 import core.thread.types;
 import core.atomic;
@@ -1116,24 +1116,6 @@ private extern (D) ThreadBase attachThread(ThreadBase _thisThread) @nogc nothrow
     if ( Thread.sm_main !is null )
         multiThreadedFlag = true;
     return thisThread;
-}
-
-/**
- * Registers the calling thread for use with the D Runtime.  If this routine
- * is called for a thread which is already registered, no action is performed.
- *
- * NOTE: This routine does not run thread-local static constructors when called.
- *       If full functionality as a D thread is desired, the following function
- *       must be called after thread_attachThis:
- *
- *       extern (C) void rt_moduleTlsCtor();
- *
- * See_Also:
- *     $(REF thread_detachThis, core,thread,threadbase)
- */
-extern(C) Thread thread_attachThis()
-{
-    return thread_attachThis_tpl!Thread();
 }
 
 
