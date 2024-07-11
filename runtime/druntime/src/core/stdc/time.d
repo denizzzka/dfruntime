@@ -15,15 +15,7 @@
 
 module core.stdc.time;
 
-version (Posix)
-    public import core.sys.posix.stdc.time;
-else version (Windows)
-    public import core.sys.windows.stdc.time;
-else version(CRuntime_Abstract)
-    public import external.libc.time;
-else
-    static assert(0, "unsupported system");
-
+public import core.stdc.time_impl;
 import core.stdc.config;
 
 extern (C):
