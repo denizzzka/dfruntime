@@ -2,6 +2,9 @@ module core.stdc.stdio;
 
 import core.stdc.config: c_long;
 
+nothrow:
+@nogc:
+
 ///
 alias fpos_t = c_long;
 
@@ -41,4 +44,10 @@ enum
     L_tmpnam     = 20
 }
 
-extern(C) int snprintf(scope char* s, size_t n, scope const char* format, ...) nothrow @nogc;
+///
+pragma(printf)
+extern(C) int snprintf(scope char* s, size_t n, scope const char* format, ...);
+
+///
+pragma(printf)
+extern(C) int sprintf(scope char* s, scope const char* format, scope const ...);
