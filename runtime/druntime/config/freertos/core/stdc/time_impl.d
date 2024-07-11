@@ -30,10 +30,10 @@ struct tm
 import core.time;
 
 //FIXME: TickDuration is deprecated!
-static @property TickDuration currSystemTick() @trusted nothrow @nogc
-{
-    return TickDuration(currTicks);
-}
+//~ static @property TickDuration currSystemTick() @trusted nothrow @nogc
+//~ {
+    //~ return TickDuration(currTicks);
+//~ }
 
 static import os = freertos_binding;
 
