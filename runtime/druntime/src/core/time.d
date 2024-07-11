@@ -330,16 +330,13 @@ else version (Solaris) enum ClockType
     second = 6,
     threadCPUTime = 7,
 }
-else version (DruntimeAbstractRt)
-{
-    public import external.core.time: ClockType;
-}
 else
 {
     // It needs to be decided (and implemented in an appropriate version branch
     // here) which clock types new platforms are going to support. At minimum,
     // the ones _not_ marked with $(D Blue Foo-Only) should be supported.
-    static assert(0, "What are the clock types supported by this system?");
+    //TODO: move ClockType definition from core.std.*
+    public import core.stdc.time_impl: ClockType;
 }
 
 // private, used to translate clock type to proper argument to clock_xxx
