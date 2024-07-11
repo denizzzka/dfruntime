@@ -15,25 +15,8 @@
  */
 module core.sync.mutex;
 
-
 public import core.sync.exception;
-
-version (Windows)
-{
-    import core.sys.windows.winbase /+: CRITICAL_SECTION, DeleteCriticalSection,
-        EnterCriticalSection, InitializeCriticalSection, LeaveCriticalSection,
-        TryEnterCriticalSection+/;
-}
-else version (Posix)
-{
-    version = AnyLibc;
-
-    import core.sys.posix.pthread;
-}
-else
-{
-    static assert(false, "Platform not supported");
-}
+import core.sys.posix.pthread;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Mutex
@@ -77,11 +60,6 @@ class Mutex :
     private this(this Q)(bool _unused_) @trusted nothrow @nogc
         if (is(Q == Mutex) || is(Q == shared Mutex))
     {
-        version (Windows)
-        {
-            InitializeCriticalSection(cast(CRITICAL_SECTION*) &m_hndl);
-        }
-        else version (AnyLibc)
         {
             import core.internal.abort : abort;
             pthread_mutexattr_t attr = void;
@@ -140,11 +118,6 @@ class Mutex :
 
     ~this() @trusted nothrow @nogc
     {
-        version (Windows)
-        {
-            DeleteCriticalSection(&m_hndl);
-        }
-        else version (AnyLibc)
         {
             import core.internal.abort : abort;
             !pthread_mutex_destroy(&m_hndl) ||
@@ -182,11 +155,6 @@ class Mutex :
     final void lock_nothrow(this Q)() nothrow @trusted @nogc
         if (is(Q == Mutex) || is(Q == shared Mutex))
     {
-        version (Windows)
-        {
-            EnterCriticalSection(&m_hndl);
-        }
-        else version (AnyLibc)
         {
             if (pthread_mutex_lock(&m_hndl) == 0)
                 return;
@@ -220,11 +188,6 @@ class Mutex :
     final void unlock_nothrow(this Q)() nothrow @trusted @nogc
         if (is(Q == Mutex) || is(Q == shared Mutex))
     {
-        version (Windows)
-        {
-            LeaveCriticalSection(&m_hndl);
-        }
-        else version (AnyLibc)
         {
             if (pthread_mutex_unlock(&m_hndl) == 0)
                 return;
@@ -262,26 +225,12 @@ class Mutex :
     final bool tryLock_nothrow(this Q)() nothrow @trusted @nogc
         if (is(Q == Mutex) || is(Q == shared Mutex))
     {
-        version (Windows)
-        {
-            return TryEnterCriticalSection(&m_hndl) != 0;
-        }
-        else version (AnyLibc)
-        {
-            return pthread_mutex_trylock(&m_hndl) == 0;
-        }
+        return pthread_mutex_trylock(&m_hndl) == 0;
     }
 
 
 private:
-    version (Windows)
-    {
-        CRITICAL_SECTION    m_hndl;
-    }
-    else version (AnyLibc)
-    {
-        pthread_mutex_t     m_hndl;
-    }
+    pthread_mutex_t     m_hndl;
 
     struct MonitorProxy
     {
@@ -292,11 +241,8 @@ private:
 
 
 package:
-    version (AnyLibc)
+    pthread_mutex_t* handleAddr() @nogc
     {
-        pthread_mutex_t* handleAddr() @nogc
-        {
-            return &m_hndl;
-        }
+        return &m_hndl;
     }
 }
