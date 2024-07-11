@@ -245,7 +245,9 @@ version (DragonFlyBSD) unittest
     thr.join();
 }
 
-version (ThreadsDisabled){} else
+version (ThreadsDisabled) {}
+else:
+
 nothrow @nogc unittest
 {
     struct TaskWithContect
@@ -269,4 +271,30 @@ nothrow @nogc unittest
         joinLowLevelThread(tids[i]);
 
     assert(task.n == tids.length);
+}
+
+unittest
+{
+    auto thr = Thread.getThis();
+    immutable prio = thr.priority;
+    scope (exit) thr.priority = prio;
+
+    assert(prio == thr.PRIORITY_DEFAULT);
+    assert(prio >= thr.PRIORITY_MIN && prio <= thr.PRIORITY_MAX);
+    thr.priority = thr.PRIORITY_MIN;
+    assert(thr.priority == thr.PRIORITY_MIN);
+    thr.priority = thr.PRIORITY_MAX;
+    assert(thr.priority == thr.PRIORITY_MAX);
+}
+
+unittest // Bugzilla 8960
+{
+    import core.sync.semaphore;
+
+    auto thr = new Thread({});
+    thr.start();
+    Thread.sleep(1.msecs);       // wait a little so the thread likely has finished
+    thr.priority = thr.PRIORITY_MAX; // setting priority doesn't cause error
+    auto prio = thr.priority;    // getting priority doesn't cause error
+    assert(prio >= thr.PRIORITY_MIN && prio <= thr.PRIORITY_MAX);
 }
