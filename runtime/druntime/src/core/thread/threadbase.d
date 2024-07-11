@@ -1216,7 +1216,7 @@ extern (C) void thread_scanAll(scope ScanAllThreadsFn scan) nothrow
     thread_scanAllType((type, p1, p2) => scan(p1, p2));
 }
 
-private alias thread_yield = externDFunc!("core.thread.osthread.thread_yield", void function() @nogc nothrow);
+private alias thread_yield = externDFunc!("core.thread.common.thread_yield", void function() @nogc nothrow);
 
 /**
  * Signals that the code following this call is a critical region. Any code in

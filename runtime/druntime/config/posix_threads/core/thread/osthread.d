@@ -13,6 +13,7 @@
 module core.thread.osthread;
 
 import core.thread.threadbase;
+import core.thread.common;
 import core.thread.context;
 import core.thread.types;
 import core.atomic;
@@ -1017,16 +1018,6 @@ class Thread : ThreadBase
         else version (Posix)
             sched_yield();
     }
-}
-
-private Thread toThread(return scope ThreadBase t) @trusted nothrow @nogc pure
-{
-    return cast(Thread) cast(void*) t;
-}
-
-private extern(D) static void thread_yield() @nogc nothrow
-{
-    Thread.yield();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
