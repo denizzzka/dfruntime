@@ -1161,7 +1161,9 @@ static if (__traits(getOverloads, core.stdc.errno, "errno").length == 1
     private ref int fakePureErrno() @nogc nothrow pure @system;
 }
 else
-    static assert(false);
+{
+    import core.stdc.errno: fakePureErrno;
+}
 
 version (D_BetterC) {}
 else // TODO: remove this function after Phobos no longer needs it.
