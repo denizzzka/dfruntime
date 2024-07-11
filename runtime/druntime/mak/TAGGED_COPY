@@ -1,6 +1,7 @@
 core\internal\abort.d
 core\internal\print_err.d
 core\stdc\errno.d
+core\stdc\stdint.d
 core\stdc\time_impl.d
 core\stdc\wchar_.d
 core\sync\event_awaiter.d
