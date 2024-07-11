@@ -1,4 +1,4 @@
-module external.libc.stddef;
+module core.stdc.stddef;
 
 alias wchar_t = dchar;
 

@@ -34,10 +34,6 @@ else version (Posix)
     ///
     alias dchar wchar_t;
 }
-else version (CRuntime_Abstract)
-{
-    public import external.libc.stddef : wchar_t;
-}
 else version (WASI)
 {
     ///

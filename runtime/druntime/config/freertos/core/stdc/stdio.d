@@ -1,4 +1,4 @@
-module external.libc.stdio_;
+module core.stdc.stdio;
 
 import core.stdc.config: c_long;
 
