@@ -1068,7 +1068,7 @@ do
 }
 
 package alias callWithStackShellDg = void delegate(void* sp) nothrow;
-private alias callWithStackShell = externDFunc!("core.thread.osthread.callWithStackShell", void function(scope callWithStackShellDg) nothrow);
+private alias callWithStackShell = externDFunc!("core.thread.common.callWithStackShell", void function(scope callWithStackShellDg) nothrow);
 
 private void scanAllTypeImpl(scope ScanAllThreadsTypeFn scan, void* curStackTop) nothrow
 {
