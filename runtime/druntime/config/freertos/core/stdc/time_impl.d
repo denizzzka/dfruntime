@@ -35,11 +35,11 @@ static @property TickDuration currSystemTick() @trusted nothrow @nogc
     return TickDuration(currTicks);
 }
 
-//~ static import os = freertos;
+static import os = freertos_binding;
 
 long currTicks() @trusted nothrow @nogc
 {
-    //~ return os.xTaskGetTickCount();
+    return os.xTaskGetTickCount();
 }
 
 //TODO: templatize this calculations to avoid wasting CPU time
@@ -58,11 +58,11 @@ unittest
     assert(1.seconds.toTicks == _ticksPerSec);
 }
 
-//~ enum _ticksPerSec = os.configTICK_RATE_HZ;
+enum _ticksPerSec = os.configTICK_RATE_HZ;
 
 void initTicksPerSecond(ref long[] tps) @nogc nothrow
 {
-    //~ tps[0] = _ticksPerSec; // ClockType.normal
+    tps[0] = _ticksPerSec; // ClockType.normal
 }
 
 // Linked by picolibc
