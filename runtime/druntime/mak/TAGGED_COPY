@@ -1,6 +1,7 @@
 core\internal\abort.d
 core\internal\print_err.d
 core\stdc\errno.d
+core\stdc\stddef.d
 core\stdc\stdint.d
 core\stdc\stdio.d
 core\stdc\time_impl.d
