@@ -89,7 +89,7 @@ private
 package
 {
     alias getStackBottom = externDFunc!("core.thread.osthread.getStackBottom", void* function() nothrow @nogc);
-    alias getStackTop = externDFunc!("core.thread.osthread.getStackTop", void* function() nothrow @nogc);
+    alias getStackTop = externDFunc!("core.thread.common.getStackTop", void* function() nothrow @nogc);
 }
 
 

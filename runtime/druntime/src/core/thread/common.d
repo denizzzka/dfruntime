@@ -1,7 +1,36 @@
 module core.thread.common;
 
+// In fact, these functions are waiting for split by tags, but for now it’s
+// convenient to have all architectures in one file: there are not so big
+// amount of them actually supported by all available compiler
+
 import core.thread.osthread;
 import core.thread.threadbase;
+
+version (LDC)
+{
+    import ldc.attributes;
+    import ldc.llvmasm;
+
+    version (Windows) version = LDC_Windows;
+
+    version (ARM)     version = ARM_Any;
+    version (AArch64) version = ARM_Any;
+
+    version (MIPS32) version = MIPS_Any;
+    version (MIPS64) version = MIPS_Any;
+
+    version (PPC)   version = PPC_Any;
+    version (PPC64) version = PPC_Any;
+
+    version (RISCV32) version = RISCV_Any;
+    version (RISCV64) version = RISCV_Any;
+
+    version (SupportSanitizers)
+    {
+        import ldc.sanitizers_optionally_linked;
+    }
+}
 
 package Thread toThread(return scope ThreadBase t) @trusted nothrow @nogc pure
 {
@@ -274,4 +303,62 @@ in (fn)
     }
 
     fn(sp);
+}
+
+version (LDC)
+{
+    version (X86)      version = LDC_stackTopAsm;
+    version (X86_64)   version = LDC_stackTopAsm;
+    version (ARM_Any)  version = LDC_stackTopAsm;
+    version (PPC_Any)  version = LDC_stackTopAsm;
+    version (MIPS_Any) version = LDC_stackTopAsm;
+
+    version (LDC_stackTopAsm)
+    {
+        /* The inline assembler is written in a style that the code can be inlined.
+         * If it isn't, the function is still naked, so the caller's stack pointer
+         * is used nevertheless.
+         */
+        private extern(D) void* getStackTop() nothrow @nogc @naked
+        {
+            version (X86)
+                return __asm!(void*)("movl %esp, $0", "=r");
+            else version (X86_64)
+                return __asm!(void*)("movq %rsp, $0", "=r");
+            else version (ARM_Any)
+                return __asm!(void*)("mov $0, sp", "=r");
+            else version (PPC_Any)
+                return __asm!(void*)("mr $0, 1", "=r");
+            else version (MIPS_Any)
+                return __asm!(void*)("move $0, $$sp", "=r");
+            else
+                static assert(0);
+        }
+    }
+    else
+    {
+        /* The use of intrinsic llvm_frameaddress is a reasonable default for
+         * cpu architectures without assembler support from LLVM. Because of
+         * the slightly different meaning the function must neither be inlined
+         * nor naked.
+         */
+        private extern(D) void* getStackTop() nothrow @nogc
+        {
+            import ldc.intrinsics;
+            pragma(LDC_never_inline);
+            return llvm_frameaddress(0);
+        }
+    }
+}
+else
+private extern(D) void* getStackTop() nothrow @nogc
+{
+    version (D_InlineAsm_X86)
+        asm pure nothrow @nogc { naked; mov EAX, ESP; ret; }
+    else version (D_InlineAsm_X86_64)
+        asm pure nothrow @nogc { naked; mov RAX, RSP; ret; }
+    else version (GNU)
+        return __builtin_frame_address(0);
+    else
+        static assert(false, "Architecture not supported.");
 }
