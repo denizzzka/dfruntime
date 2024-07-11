@@ -11,8 +11,6 @@ enum ClockType
 import core.stdc.config: c_long;
 alias time_t = c_long;
 
-import core.time;
-
 // add ability to import tm from core.sys.posix.stdc.time
 struct tm
 {
@@ -28,6 +26,8 @@ struct tm
     c_long  tm_gmtoff;  /// offset from CUT in seconds
     char*   tm_zone;    /// timezone abbreviation
 }
+
+import core.time;
 
 //FIXME: TickDuration is deprecated!
 static @property TickDuration currSystemTick() @trusted nothrow @nogc
