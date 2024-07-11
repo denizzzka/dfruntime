@@ -1,6 +1,6 @@
-project(runtime C)
-
 cmake_minimum_required(VERSION 3.4.3)
+
+project(runtime C)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR})
 
