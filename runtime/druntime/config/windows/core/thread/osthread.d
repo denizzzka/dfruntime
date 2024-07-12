@@ -770,16 +770,6 @@ version (all)
     alias getpid = core.sys.windows.winbase.GetCurrentProcessId;
 }
 
-version (DruntimeAbstractRt)
-{
-    static import external.core.thread;
-
-    package extern(D) void* getStackBottom() nothrow @nogc
-    {
-        return external.core.thread.getStackBottom();
-    }
-}
-else
 version (LDC_Windows)
 {
     private extern(D) void* getStackBottom() nothrow @nogc @naked
@@ -808,51 +798,6 @@ private extern(D) void* getStackBottom() nothrow @nogc
             }
         else
             static assert(false, "Architecture not supported.");
-    }
-    else version (Darwin)
-    {
-        import core.sys.darwin.pthread;
-        return pthread_get_stackaddr_np(pthread_self());
-    }
-    else version (PThread_Getattr_NP)
-    {
-        pthread_attr_t attr;
-        void* addr; size_t size;
-
-        pthread_attr_init(&attr);
-        pthread_getattr_np(pthread_self(), &attr);
-        pthread_attr_getstack(&attr, &addr, &size);
-        pthread_attr_destroy(&attr);
-        static if (isStackGrowingDown)
-            addr += size;
-        return addr;
-    }
-    else version (PThread_Attr_Get_NP)
-    {
-        pthread_attr_t attr;
-        void* addr; size_t size;
-
-        pthread_attr_init(&attr);
-        pthread_attr_get_np(pthread_self(), &attr);
-        pthread_attr_getstack(&attr, &addr, &size);
-        pthread_attr_destroy(&attr);
-        static if (isStackGrowingDown)
-            addr += size;
-        return addr;
-    }
-    else version (OpenBSD)
-    {
-        stack_t stk;
-
-        pthread_stackseg_np(pthread_self(), &stk);
-        return stk.ss_sp;
-    }
-    else version (Solaris)
-    {
-        stack_t stk;
-
-        thr_stksegment(&stk);
-        return stk.ss_sp;
     }
     else
         static assert(false, "Platform not supported.");
