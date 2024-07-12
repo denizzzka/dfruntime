@@ -82,7 +82,7 @@ version (all)
     import core.stdc.stdint : uintptr_t; // for _beginthreadex decl below
     import core.stdc.stdlib;             // for malloc, atexit
     import core.sys.windows.basetsd /+: HANDLE+/;
-    import core.sys.windows.threadaux /+: getThreadStackBottom, impersonate_thread, OpenThreadHandle+/;
+    import core.sys.windows.threadaux : getThreadStackBottom, impersonate_thread, OpenThreadHandle;
     import core.sys.windows.winbase /+: CloseHandle, CREATE_SUSPENDED, DuplicateHandle, GetCurrentThread,
         GetCurrentThreadId, GetCurrentProcess, GetExitCodeThread, GetSystemInfo, GetThreadContext,
         GetThreadPriority, INFINITE, ResumeThread, SetThreadPriority, Sleep,  STILL_ACTIVE,
@@ -1131,64 +1131,13 @@ version (all)
     }
 }
 
-//
-// exposed by compiler runtime
-//
-extern (C) void  rt_moduleTlsCtor();
-extern (C) void  rt_moduleTlsDtor();
-
-
-// regression test for Issue 13416
-version (FreeBSD) unittest
-{
-    static void loop()
-    {
-        pthread_attr_t attr;
-        pthread_attr_init(&attr);
-        auto thr = pthread_self();
-        foreach (i; 0 .. 50)
-            pthread_attr_get_np(thr, &attr);
-        pthread_attr_destroy(&attr);
-    }
-
-    auto thr = new Thread(&loop).start();
-    foreach (i; 0 .. 50)
-    {
-        thread_suspendAll();
-        thread_resumeAll();
-    }
-    thr.join();
-}
-
-version (DragonFlyBSD) unittest
-{
-    static void loop()
-    {
-        pthread_attr_t attr;
-        pthread_attr_init(&attr);
-        auto thr = pthread_self();
-        foreach (i; 0 .. 50)
-            pthread_attr_get_np(thr, &attr);
-        pthread_attr_destroy(&attr);
-    }
-
-    auto thr = new Thread(&loop).start();
-    foreach (i; 0 .. 50)
-    {
-        thread_suspendAll();
-        thread_resumeAll();
-    }
-    thr.join();
-}
-
-
 ///////////////////////////////////////////////////////////////////////////////
 // lowlovel threading support
 ///////////////////////////////////////////////////////////////////////////////
 
 private
 {
-    version (Windows):
+    version (all):
     // If the runtime is dynamically loaded as a DLL, there is a problem with
     // threads still running when the DLL is supposed to be unloaded:
     //
@@ -1339,9 +1288,6 @@ private
  * Returns: the platform specific thread ID of the new thread. If an error occurs, `ThreadID.init`
  *  is returned.
  */
-version (DruntimeAbstractRt)
-    public import external.core.thread : createLowLevelThread;
-else
 ThreadID createLowLevelThread(void delegate() nothrow dg, uint stacksize = 0,
                               void delegate() nothrow cbDllUnload = null) nothrow @nogc
 {
@@ -1349,7 +1295,7 @@ ThreadID createLowLevelThread(void delegate() nothrow dg, uint stacksize = 0,
     *context = dg;
 
     ThreadID tid;
-    version (Windows)
+    version (all)
     {
         // the thread won't start until after the DLL is unloaded
         if (thread_DLLProcessDetaching)
@@ -1378,7 +1324,7 @@ ThreadID createLowLevelThread(void delegate() nothrow dg, uint stacksize = 0,
     ll_nThreads++;
     ll_pThreads = cast(ll_ThreadData*)realloc(ll_pThreads, ll_ThreadData.sizeof * ll_nThreads);
 
-    version (Windows)
+    version (all)
     {
         ll_pThreads[ll_nThreads - 1].tid = tid;
         ll_pThreads[ll_nThreads - 1].cbDllUnload = cbDllUnload;
@@ -1389,34 +1335,7 @@ ThreadID createLowLevelThread(void delegate() nothrow dg, uint stacksize = 0,
         if (cbDllUnload)
             ll_startDLLUnloadThread();
     }
-    else version (Posix)
-    {
-        static extern (C) void* thread_lowlevelEntry(void* ctx) nothrow
-        {
-            auto dg = *cast(void delegate() nothrow*)ctx;
-            free(ctx);
 
-            dg();
-            ll_removeThread(pthread_self());
-            return null;
-        }
-
-        size_t stksz = adjustStackSize(stacksize);
-
-        pthread_attr_t  attr;
-
-        int rc;
-        if ((rc = pthread_attr_init(&attr)) != 0)
-            return ThreadID.init;
-        if (stksz && (rc = pthread_attr_setstacksize(&attr, stksz)) != 0)
-            return ThreadID.init;
-        if ((rc = pthread_create(&tid, &attr, &thread_lowlevelEntry, context)) != 0)
-            return ThreadID.init;
-        if ((rc = pthread_attr_destroy(&attr)) != 0)
-            return ThreadID.init;
-
-        ll_pThreads[ll_nThreads - 1].tid = tid;
-    }
     return tid;
 }
 
