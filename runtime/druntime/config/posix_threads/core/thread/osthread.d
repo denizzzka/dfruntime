@@ -24,7 +24,9 @@ import core.internal.traits : externDFunc;
 
 // Here the entire file is version(Posix), but I don't remove most of
 // these version branches so as not to distort code and not to complicate
-// future upstream merges
+// future upstream merges.
+//
+// Some version (Posix) renamed to version (all) to further protection from errors
 
 version (LDC)
 {
@@ -102,7 +104,7 @@ version (Posix)
     }
 }
 
-version (Posix)
+version (all)
 {
     import core.stdc.errno;
     import core.sys.posix.semaphore;
@@ -225,7 +227,7 @@ class Thread : ThreadBase
     //
     // Standard types
     //
-    version (Posix)
+    version (all)
     {
         alias TLSKey = pthread_key_t;
     }
@@ -281,7 +283,7 @@ class Thread : ThreadBase
         if (super.destructBeforeDtor())
             return;
 
-        version (Posix)
+        version (all)
         {
             if (m_addr != m_addr.init)
             {
@@ -399,7 +401,7 @@ class Thread : ThreadBase
                 multiThreadedFlag = false;
         }
 
-        version (Posix)
+        version (all)
         {
             size_t stksz = adjustStackSize( m_sz );
 
@@ -422,7 +424,7 @@ class Thread : ThreadBase
         {
             incrementAboutToStart(this);
 
-            version (Posix)
+            version (all)
             {
                 // NOTE: This is also set to true by thread_entryPoint, but set it
                 //       here as well so the calling thread will see the isRunning
@@ -452,14 +454,14 @@ class Thread : ThreadBase
             }
             else
             {
-                version (Posix)
+                version (all)
                 {
                     if ( pthread_create( &m_addr, &attr, &thread_entryPoint, cast(void*) this ) != 0 )
                         onThreadError( "Error creating thread" );
                 }
             }
 
-            version (Posix)
+            version (all)
             {
                 if ( pthread_attr_destroy( &attr ) != 0 )
                     onThreadError( "Error destroying thread attributes" );
@@ -494,7 +496,7 @@ class Thread : ThreadBase
      */
     override final Throwable join( bool rethrow = true )
     {
-        version (Posix)
+        version (all)
         {
             if ( m_addr != m_addr.init && pthread_join( m_addr, null ) != 0 )
                 throw new ThreadException( "Unable to join thread" );
@@ -746,7 +748,7 @@ class Thread : ThreadBase
         {
            fakePriority = val;
         }
-        else version (Posix)
+        else version (all)
         {
             static if (__traits(compiles, pthread_setschedprio))
             {
@@ -793,7 +795,7 @@ class Thread : ThreadBase
         if (!super.isRunning())
             return false;
 
-        version (Posix)
+        version (all)
         {
             return atomicLoad(m_isRunning);
         }
@@ -831,7 +833,7 @@ class Thread : ThreadBase
     }
     do
     {
-        version (Posix)
+        version (all)
         {
             timespec tin  = void;
             timespec tout = void;
@@ -876,7 +878,7 @@ version (CoreDdoc)
     {
     }
 }
-else version (Posix)
+else version (all)
 {
     extern (C) void thread_setGCSignals(int suspendSignalNo, int resumeSignalNo) nothrow @nogc
     in
@@ -916,7 +918,7 @@ private extern (D) ThreadBase attachThread(ThreadBase _thisThread) @nogc nothrow
         thisContext.asan_fakestack = thisThread.asan_fakestack;
     }
 
-    version (Posix)
+    version (all)
     {
         thisThread.m_addr  = pthread_self();
         thisContext.bstack = getStackBottom();
@@ -951,7 +953,7 @@ private extern (D) ThreadBase attachThread(ThreadBase _thisThread) @nogc nothrow
  * writefln("Current process id: %s", getpid());
  * ---
  */
-version (Posix)
+version (all)
 {
     import core.sys.posix.unistd;
 
@@ -1185,7 +1187,7 @@ private extern (D) bool suspend( Thread t ) nothrow @nogc
             static assert(false, "Architecture not supported." );
         }
     }
-    else version (Posix)
+    else version (all)
     {
         if ( t.m_addr != pthread_self() )
         {
@@ -1263,7 +1265,7 @@ extern (C) void thread_suspendAll() nothrow
 
         version (Darwin)
         {}
-        else version (Posix)
+        else version (all)
         {
             // Subtract own thread if we called suspend() on ourselves.
             // For example, suspendedSelf would be false if the current
@@ -1379,7 +1381,7 @@ extern (C) void thread_init() @nogc nothrow
        }
         pthread_atfork(null, null, &initChildAfterFork);
     }
-    else version (Posix)
+    else version (all)
     {
         version (OpenBSD)
         {
@@ -1462,7 +1464,7 @@ extern (C) void thread_term() @nogc nothrow
 // Thread Entry Point and Signal Handlers
 ///////////////////////////////////////////////////////////////////////////////
 
-version (Posix)
+version (all)
 {
     private
     {
@@ -1696,7 +1698,7 @@ ThreadID createLowLevelThread(void delegate() nothrow dg, uint stacksize = 0,
     ll_nThreads++;
     ll_pThreads = cast(ll_ThreadData*)realloc(ll_pThreads, ll_ThreadData.sizeof * ll_nThreads);
 
-    version (Posix)
+    version (all)
     {
         static extern (C) void* thread_lowlevelEntry(void* ctx) nothrow
         {
@@ -1739,14 +1741,13 @@ ThreadID createLowLevelThread(void delegate() nothrow dg, uint stacksize = 0,
  */
 void joinLowLevelThread(ThreadID tid) nothrow @nogc
 {
-    version (Posix)
+    version (all)
     {
         if (pthread_join(tid, null) != 0)
             onThreadError("Unable to join thread");
     }
 }
 
-version (Posix)
 private size_t adjustStackSize(size_t sz) nothrow @nogc
 {
     if (sz == 0)
