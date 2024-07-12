@@ -98,24 +98,7 @@ version (Posix)
     }
 }
 
-version (Windows)
-{
-    import core.stdc.stdint : uintptr_t; // for _beginthreadex decl below
-    import core.stdc.stdlib;             // for malloc, atexit
-    import core.sys.windows.basetsd /+: HANDLE+/;
-    import core.sys.windows.threadaux /+: getThreadStackBottom, impersonate_thread, OpenThreadHandle+/;
-    import core.sys.windows.winbase /+: CloseHandle, CREATE_SUSPENDED, DuplicateHandle, GetCurrentThread,
-        GetCurrentThreadId, GetCurrentProcess, GetExitCodeThread, GetSystemInfo, GetThreadContext,
-        GetThreadPriority, INFINITE, ResumeThread, SetThreadPriority, Sleep,  STILL_ACTIVE,
-        SuspendThread, SwitchToThread, SYSTEM_INFO, THREAD_PRIORITY_IDLE, THREAD_PRIORITY_NORMAL,
-        THREAD_PRIORITY_TIME_CRITICAL, WAIT_OBJECT_0, WaitForSingleObject+/;
-    import core.sys.windows.windef /+: TRUE+/;
-    import core.sys.windows.winnt /+: CONTEXT, CONTEXT_CONTROL, CONTEXT_INTEGER+/;
-
-    private extern (Windows) alias btex_fptr = uint function(void*);
-    private extern (C) uintptr_t _beginthreadex(void*, uint, btex_fptr, void*, uint, uint*) nothrow @nogc;
-}
-else version (Posix)
+version (Posix)
 {
     import core.stdc.errno;
     import core.sys.posix.semaphore;
@@ -157,15 +140,7 @@ private extern(C) void* _d_eh_swapContext(void* newContext) nothrow @nogc;
 // LDC: changed from `version (DigitalMars)`
 version (all)
 {
-    // LDC: changed from `version (Windows)`
-    version (CRuntime_Microsoft)
-    {
-        extern(D) void* swapContext(void* newContext) nothrow @nogc
-        {
-            return _d_eh_swapContext(newContext);
-        }
-    }
-    else
+    version (all)
     {
         extern(C) void* _d_eh_swapContextDwarf(void* newContext) nothrow @nogc;
 
@@ -222,18 +197,11 @@ else
  * A new thread may be created using either derivation or composition, as
  * in the following example.
  */
-version (DruntimeAbstractRt)
-    public import external.core.thread: Thread;
-else
 class Thread : ThreadBase
 {
     //
     // Standard thread data
     //
-    version (Windows)
-    {
-        private HANDLE          m_hndl;
-    }
 
     version (Posix)
     {
@@ -253,11 +221,7 @@ class Thread : ThreadBase
     //
     // Standard types
     //
-    version (Windows)
-    {
-        alias TLSKey = uint;
-    }
-    else version (Posix)
+    version (Posix)
     {
         alias TLSKey = pthread_key_t;
     }
@@ -313,13 +277,7 @@ class Thread : ThreadBase
         if (super.destructBeforeDtor())
             return;
 
-        version (Windows)
-        {
-            m_addr = m_addr.init;
-            CloseHandle( m_hndl );
-            m_hndl = m_hndl.init;
-        }
-        else version (Posix)
+        version (Posix)
         {
             if (m_addr != m_addr.init)
             {
@@ -370,23 +328,7 @@ class Thread : ThreadBase
     ///////////////////////////////////////////////////////////////////////////
 
 
-    version (Windows)
-    {
-        version (X86)
-        {
-            uint[8]         m_reg; // edi,esi,ebp,esp,ebx,edx,ecx,eax
-        }
-        else version (X86_64)
-        {
-            ulong[16]       m_reg; // rdi,rsi,rbp,rsp,rbx,rdx,rcx,rax
-                                   // r8,r9,r10,r11,r12,r13,r14,r15
-        }
-        else
-        {
-            static assert(false, "Architecture not supported." );
-        }
-    }
-    else version (Darwin)
+    version (Darwin)
     {
         version (X86)
         {
@@ -453,7 +395,6 @@ class Thread : ThreadBase
                 multiThreadedFlag = false;
         }
 
-        version (Windows) {} else
         version (Posix)
         {
             size_t stksz = adjustStackSize( m_sz );
@@ -470,27 +411,6 @@ class Thread : ThreadBase
         {
             auto ps = cast(void**).malloc(2 * size_t.sizeof);
             if (ps is null) onOutOfMemoryError();
-        }
-
-        version (Windows)
-        {
-            // NOTE: If a thread is just executing DllMain()
-            //       while another thread is started here, it holds an OS internal
-            //       lock that serializes DllMain with CreateThread. As the code
-            //       might request a synchronization on slock (e.g. in thread_findByAddr()),
-            //       we cannot hold that lock while creating the thread without
-            //       creating a deadlock
-            //
-            // Solution: Create the thread in suspended state and then
-            //       add and resume it with slock acquired
-            assert(m_sz <= uint.max, "m_sz must be less than or equal to uint.max");
-            version (Shared)
-                auto threadArg = cast(void*) ps;
-            else
-                auto threadArg = cast(void*) this;
-            m_hndl = cast(HANDLE) _beginthreadex( null, cast(uint) m_sz, &thread_entryPoint, threadArg, CREATE_SUSPENDED, &m_addr );
-            if ( cast(size_t) m_hndl == 0 )
-                onThreadError( "Error creating thread" );
         }
 
         slock.lock_nothrow();
@@ -515,17 +435,7 @@ class Thread : ThreadBase
                 ps[0] = cast(void*)this;
                 ps[1] = cast(void*)libs;
 
-                version (Windows)
-                {
-                    if ( ResumeThread( m_hndl ) == -1 )
-                    {
-                        externDFunc!("rt.sections_elf_shared.unpinLoadedLibraries",
-                                     void function(void*) @nogc nothrow)(libs);
-                        .free(ps);
-                        onThreadError( "Error resuming thread" );
-                    }
-                }
-                else version (Posix)
+                version (Posix)
                 {
                     if ( pthread_create( &m_addr, &attr, &thread_entryPoint, ps ) != 0 )
                     {
@@ -538,12 +448,7 @@ class Thread : ThreadBase
             }
             else
             {
-                version (Windows)
-                {
-                    if ( ResumeThread( m_hndl ) == -1 )
-                        onThreadError( "Error resuming thread" );
-                }
-                else version (Posix)
+                version (Posix)
                 {
                     if ( pthread_create( &m_addr, &attr, &thread_entryPoint, cast(void*) this ) != 0 )
                         onThreadError( "Error creating thread" );
@@ -585,18 +490,7 @@ class Thread : ThreadBase
      */
     override final Throwable join( bool rethrow = true )
     {
-        version (Windows)
-        {
-            if ( m_addr != m_addr.init && WaitForSingleObject( m_hndl, INFINITE ) != WAIT_OBJECT_0 )
-                throw new ThreadException( "Unable to join thread" );
-            // NOTE: m_addr must be cleared before m_hndl is closed to avoid
-            //       a race condition with isRunning. The operation is done
-            //       with atomicStore to prevent compiler reordering.
-            atomicStore!(MemoryOrder.raw)(*cast(shared)&m_addr, m_addr.init);
-            CloseHandle( m_hndl );
-            m_hndl = m_hndl.init;
-        }
-        else version (Posix)
+        version (Posix)
         {
             if ( m_addr != m_addr.init && pthread_join( m_addr, null ) != 0 )
                 throw new ThreadException( "Unable to join thread" );
@@ -620,24 +514,7 @@ class Thread : ThreadBase
     // Thread Priority Actions
     ///////////////////////////////////////////////////////////////////////////
 
-    version (Windows)
-    {
-        @property static int PRIORITY_MIN() @nogc nothrow pure @safe
-        {
-            return THREAD_PRIORITY_IDLE;
-        }
-
-        @property static const(int) PRIORITY_MAX() @nogc nothrow pure @safe
-        {
-            return THREAD_PRIORITY_TIME_CRITICAL;
-        }
-
-        @property static int PRIORITY_DEFAULT() @nogc nothrow pure @safe
-        {
-            return THREAD_PRIORITY_NORMAL;
-        }
-    }
-    else
+    version (all)
     {
         private struct Priority
         {
@@ -798,11 +675,7 @@ class Thread : ThreadBase
      */
     final @property int priority()
     {
-        version (Windows)
-        {
-            return GetThreadPriority( m_hndl );
-        }
-        else version (NetBSD)
+        version (NetBSD)
         {
            return fakePriority==int.max? PRIORITY_DEFAULT : fakePriority;
         }
@@ -839,12 +712,7 @@ class Thread : ThreadBase
     }
     do
     {
-        version (Windows)
-        {
-            if ( !SetThreadPriority( m_hndl, val ) )
-                throw new ThreadException( "Unable to set thread priority" );
-        }
-        else version (Solaris)
+        version (Solaris)
         {
             // the pthread_setschedprio(3c) and pthread_setschedparam functions
             // are broken for the default (TS / time sharing) scheduling class.
@@ -921,13 +789,7 @@ class Thread : ThreadBase
         if (!super.isRunning())
             return false;
 
-        version (Windows)
-        {
-            uint ecode = 0;
-            GetExitCodeThread( m_hndl, &ecode );
-            return ecode == STILL_ACTIVE;
-        }
-        else version (Posix)
+        version (Posix)
         {
             return atomicLoad(m_isRunning);
         }
@@ -965,30 +827,7 @@ class Thread : ThreadBase
     }
     do
     {
-        version (Windows)
-        {
-            auto maxSleepMillis = dur!("msecs")( uint.max - 1 );
-
-            // avoid a non-zero time to be round down to 0
-            if ( val > dur!"msecs"( 0 ) && val < dur!"msecs"( 1 ) )
-                val = dur!"msecs"( 1 );
-
-            // NOTE: In instances where all other threads in the process have a
-            //       lower priority than the current thread, the current thread
-            //       will not yield with a sleep time of zero.  However, unlike
-            //       yield(), the user is not asking for a yield to occur but
-            //       only for execution to suspend for the requested interval.
-            //       Therefore, expected performance may not be met if a yield
-            //       is forced upon the user.
-            while ( val > maxSleepMillis )
-            {
-                Sleep( cast(uint)
-                       maxSleepMillis.total!"msecs" );
-                val -= maxSleepMillis;
-            }
-            Sleep( cast(uint) val.total!"msecs" );
-        }
-        else version (Posix)
+        version (Posix)
         {
             timespec tin  = void;
             timespec tout = void;
@@ -1013,10 +852,7 @@ class Thread : ThreadBase
      */
     static void yield() @nogc nothrow
     {
-        version (Windows)
-            SwitchToThread();
-        else version (Posix)
-            sched_yield();
+        sched_yield();
     }
 }
 
