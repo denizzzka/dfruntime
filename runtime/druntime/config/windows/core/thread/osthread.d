@@ -615,54 +615,6 @@ private extern(D) static void thread_yield() @nogc nothrow
 // GC Support Routines
 ///////////////////////////////////////////////////////////////////////////////
 
-version (CoreDdoc)
-{
-    /**
-     * Instruct the thread module, when initialized, to use a different set of
-     * signals besides SIGRTMIN and SIGRTMIN + 1 for suspension and resumption of threads.
-     * This function should be called at most once, prior to thread_init().
-     * This function is Posix-only.
-     */
-    extern (C) void thread_setGCSignals(int suspendSignalNo, int resumeSignalNo) nothrow @nogc
-    {
-    }
-}
-else version (Posix)
-{
-    extern (C) void thread_setGCSignals(int suspendSignalNo, int resumeSignalNo) nothrow @nogc
-    in
-    {
-        assert(suspendSignalNo != 0);
-        assert(resumeSignalNo  != 0);
-    }
-    out
-    {
-        assert(suspendSignalNumber != 0);
-        assert(resumeSignalNumber  != 0);
-    }
-    do
-    {
-        suspendSignalNumber = suspendSignalNo;
-        resumeSignalNumber  = resumeSignalNo;
-    }
-}
-
-version (Posix)
-{
-    private __gshared int suspendSignalNumber;
-    private __gshared int resumeSignalNumber;
-}
-
-version (DruntimeAbstractRt)
-{
-    import external.core.thread : external_attachThread;
-
-    private extern (D) ThreadBase attachThread(ThreadBase _thisThread) @nogc nothrow
-    {
-        return external_attachThread(_thisThread);
-    }
-}
-else
 private extern (D) ThreadBase attachThread(ThreadBase _thisThread) @nogc nothrow
 {
     Thread thisThread = _thisThread.toThread();
@@ -684,23 +636,10 @@ private extern (D) ThreadBase attachThread(ThreadBase _thisThread) @nogc nothrow
         thisContext.bstack = getStackBottom();
         thisContext.tstack = thisContext.bstack;
     }
-    else version (Posix)
-    {
-        thisThread.m_addr  = pthread_self();
-        thisContext.bstack = getStackBottom();
-        thisContext.tstack = thisContext.bstack;
 
-        atomicStore!(MemoryOrder.raw)(thisThread.toThread.m_isRunning, true);
-    }
     thisThread.m_isDaemon = true;
     thisThread.tlsGCdataInit();
     Thread.setThis( thisThread );
-
-    version (Darwin)
-    {
-        thisThread.m_tmach = pthread_mach_thread_np( thisThread.m_addr );
-        assert( thisThread.m_tmach != thisThread.m_tmach.init );
-    }
 
     Thread.add( thisThread, false );
     Thread.add( thisContext );
@@ -728,7 +667,7 @@ extern(C) Thread thread_attachThis()
 }
 
 
-version (Windows)
+version (all)
 {
     // NOTE: These calls are not safe on Posix systems that use signals to
     //       perform garbage collection.  The suspendHandler uses getThis()
