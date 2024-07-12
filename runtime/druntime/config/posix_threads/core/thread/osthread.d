@@ -975,46 +975,9 @@ extern (C) @nogc nothrow
     version (OpenBSD) int pthread_stackseg_np(pthread_t thread, stack_t* sinfo);
 }
 
-version (DruntimeAbstractRt)
-{
-    static import external.core.thread;
-
-    package extern(D) void* getStackBottom() nothrow @nogc
-    {
-        return external.core.thread.getStackBottom();
-    }
-}
-else
-version (LDC_Windows)
-{
-    private extern(D) void* getStackBottom() nothrow @nogc @naked
-    {
-        version (X86)
-            return __asm!(void*)("mov %fs:(4), $0", "=r");
-        else version (X86_64)
-            return __asm!(void*)("mov %gs:0($1), $0", "=r,r", 8);
-        else
-            static assert(false, "Architecture not supported.");
-    }
-}
-else
 private extern(D) void* getStackBottom() nothrow @nogc
 {
-    version (Windows)
-    {
-        version (D_InlineAsm_X86)
-            asm pure nothrow @nogc { naked; mov EAX, FS:4; ret; }
-        else version (D_InlineAsm_X86_64)
-            asm pure nothrow @nogc
-            {    naked;
-                 mov RAX, 8;
-                 mov RAX, GS:[RAX];
-                 ret;
-            }
-        else
-            static assert(false, "Architecture not supported.");
-    }
-    else version (Darwin)
+    version (Darwin)
     {
         import core.sys.darwin.pthread;
         return pthread_get_stackaddr_np(pthread_self());
@@ -1097,66 +1060,7 @@ private extern (D) bool suspend( Thread t ) nothrow @nogc
         goto Lagain;
     }
 
-    version (Windows)
-    {
-        if ( t.m_addr != GetCurrentThreadId() && SuspendThread( t.m_hndl ) == 0xFFFFFFFF )
-        {
-            if ( !t.isRunning )
-            {
-                Thread.remove( t );
-                return false;
-            }
-            onThreadError( "Unable to suspend thread" );
-        }
-
-        CONTEXT context = void;
-        context.ContextFlags = CONTEXT_INTEGER | CONTEXT_CONTROL;
-
-        if ( !GetThreadContext( t.m_hndl, &context ) )
-            onThreadError( "Unable to load thread context" );
-        version (X86)
-        {
-            if ( !t.m_lock )
-                t.m_curr.tstack = cast(void*) context.Esp;
-            // eax,ebx,ecx,edx,edi,esi,ebp,esp
-            t.m_reg[0] = context.Eax;
-            t.m_reg[1] = context.Ebx;
-            t.m_reg[2] = context.Ecx;
-            t.m_reg[3] = context.Edx;
-            t.m_reg[4] = context.Edi;
-            t.m_reg[5] = context.Esi;
-            t.m_reg[6] = context.Ebp;
-            t.m_reg[7] = context.Esp;
-        }
-        else version (X86_64)
-        {
-            if ( !t.m_lock )
-                t.m_curr.tstack = cast(void*) context.Rsp;
-            // rax,rbx,rcx,rdx,rdi,rsi,rbp,rsp
-            t.m_reg[0] = context.Rax;
-            t.m_reg[1] = context.Rbx;
-            t.m_reg[2] = context.Rcx;
-            t.m_reg[3] = context.Rdx;
-            t.m_reg[4] = context.Rdi;
-            t.m_reg[5] = context.Rsi;
-            t.m_reg[6] = context.Rbp;
-            t.m_reg[7] = context.Rsp;
-            // r8,r9,r10,r11,r12,r13,r14,r15
-            t.m_reg[8]  = context.R8;
-            t.m_reg[9]  = context.R9;
-            t.m_reg[10] = context.R10;
-            t.m_reg[11] = context.R11;
-            t.m_reg[12] = context.R12;
-            t.m_reg[13] = context.R13;
-            t.m_reg[14] = context.R14;
-            t.m_reg[15] = context.R15;
-        }
-        else
-        {
-            static assert(false, "Architecture not supported." );
-        }
-    }
-    else version (Darwin)
+    version (Darwin)
     {
         if ( t.m_addr != pthread_self() && thread_suspend( t.m_tmach ) != KERN_SUCCESS )
         {
