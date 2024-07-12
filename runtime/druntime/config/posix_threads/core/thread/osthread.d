@@ -1216,9 +1216,6 @@ private extern (D) bool suspend( Thread t ) nothrow @nogc
  * Throws:
  *  ThreadError if the suspend operation fails for a running thread.
  */
-version (DruntimeAbstractRt)
-    public import external.core.thread: thread_suspendAll;
-else
 extern (C) void thread_suspendAll() nothrow
 {
     // NOTE: We've got an odd chicken & egg problem here, because while the GC
@@ -1302,28 +1299,11 @@ extern (C) void thread_suspendAll() nothrow
  * Throws:
  *  ThreadError if the resume fails for a running thread.
  */
-version(DruntimeAbstractRt) {} else
 private extern (D) void resume(ThreadBase _t) nothrow @nogc
 {
     Thread t = _t.toThread;
 
-    version (Windows)
-    {
-        if ( t.m_addr != GetCurrentThreadId() && ResumeThread( t.m_hndl ) == 0xFFFFFFFF )
-        {
-            if ( !t.isRunning )
-            {
-                Thread.remove( t );
-                return;
-            }
-            onThreadError( "Unable to resume thread" );
-        }
-
-        if ( !t.m_lock )
-            t.m_curr.tstack = t.m_curr.bstack;
-        t.m_reg[0 .. $] = 0;
-    }
-    else version (Darwin)
+    version (Darwin)
     {
         if ( t.m_addr != pthread_self() && thread_resume( t.m_tmach ) != KERN_SUCCESS )
         {
@@ -1368,9 +1348,6 @@ private extern (D) void resume(ThreadBase _t) nothrow @nogc
  * garbage collector on startup and before any other thread routines
  * are called.
  */
-version (DruntimeAbstractRt)
-    public import external.core.thread : thread_init;
-else
 extern (C) void thread_init() @nogc nothrow
 {
     // NOTE: If thread_init itself performs any allocations then the thread
@@ -1475,9 +1452,6 @@ public  __gshared align(__traits(classInstanceAlignment, Thread)) MainThreadStor
  * Terminates the thread module. No other thread routine may be called
  * afterwards.
  */
-version (DruntimeAbstractRt)
-    public import external.core.thread : thread_term;
-else
 extern (C) void thread_term() @nogc nothrow
 {
     thread_term_tpl!(Thread)(_mainThreadStore);
@@ -1488,113 +1462,7 @@ extern (C) void thread_term() @nogc nothrow
 // Thread Entry Point and Signal Handlers
 ///////////////////////////////////////////////////////////////////////////////
 
-version (DruntimeAbstractRt)
-{
-    public import external.core.thread :
-        thread_entryPoint,
-        thread_suspendHandler,
-        thread_resumeHandler;
-}
-else version (Windows)
-{
-    private
-    {
-        //
-        // Entry point for Windows threads
-        //
-        extern (Windows) uint thread_entryPoint( void* arg ) nothrow
-        {
-            version (Shared)
-            {
-                Thread obj = cast(Thread)(cast(void**)arg)[0];
-                auto loadedLibraries = (cast(void**)arg)[1];
-                .free(arg);
-            }
-            else
-            {
-                Thread obj = cast(Thread)arg;
-            }
-            assert( obj );
-
-            // loadedLibraries need to be inherited from parent thread
-            // before initilizing GC for TLS (rt_tlsgc_init)
-            version (Shared)
-            {
-                externDFunc!("rt.sections_elf_shared.inheritLoadedLibraries",
-                             void function(void*) @nogc nothrow)(loadedLibraries);
-            }
-
-            obj.initDataStorage();
-
-            Thread.setThis(obj);
-            Thread.add(obj);
-            scope (exit)
-            {
-                Thread.remove(obj);
-                obj.destroyDataStorage();
-            }
-            Thread.add(&obj.m_main);
-
-            // NOTE: No GC allocations may occur until the stack pointers have
-            //       been set and Thread.getThis returns a valid reference to
-            //       this thread object (this latter condition is not strictly
-            //       necessary on Windows but it should be followed for the
-            //       sake of consistency).
-
-            // TODO: Consider putting an auto exception object here (using
-            //       alloca) forOutOfMemoryError plus something to track
-            //       whether an exception is in-flight?
-
-            void append( Throwable t )
-            {
-                obj.m_unhandled = Throwable.chainTogether(obj.m_unhandled, t);
-            }
-
-            version (D_InlineAsm_X86)
-            {
-                asm nothrow @nogc { fninit; }
-            }
-
-            try
-            {
-                rt_moduleTlsCtor();
-                try
-                {
-                    obj.run();
-                }
-                catch ( Throwable t )
-                {
-                    append( t );
-                }
-                rt_moduleTlsDtor();
-                version (Shared)
-                {
-                    externDFunc!("rt.sections_elf_shared.cleanupLoadedLibraries",
-                                 void function() @nogc nothrow)();
-                }
-            }
-            catch ( Throwable t )
-            {
-                append( t );
-            }
-            return 0;
-        }
-
-
-        HANDLE GetCurrentThreadHandle() nothrow @nogc
-        {
-            const uint DUPLICATE_SAME_ACCESS = 0x00000002;
-
-            HANDLE curr = GetCurrentThread(),
-                   proc = GetCurrentProcess(),
-                   hndl;
-
-            DuplicateHandle( proc, curr, proc, &hndl, 0, TRUE, DUPLICATE_SAME_ACCESS );
-            return hndl;
-        }
-    }
-}
-else version (Posix)
+version (Posix)
 {
     private
     {
@@ -1793,14 +1661,6 @@ else version (Posix)
 
         }
     }
-}
-else
-{
-    // NOTE: This is the only place threading versions are checked.  If a new
-    //       version is added, the module code will need to be searched for
-    //       places where version-specific code may be required.  This can be
-    //       easily accomlished by searching for 'Windows' or 'Posix'.
-    static assert( false, "Unknown threading implementation." );
 }
 
 ///////////////////////////////////////////////////////////////////////////////
