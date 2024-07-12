@@ -22,6 +22,10 @@ import core.time;
 import core.exception : onOutOfMemoryError;
 import core.internal.traits : externDFunc;
 
+// Here the entire file is version(Posix), but I don't remove most of
+// these version branches so as not to distort code and not to complicate
+// future upstream merges
+
 version (LDC)
 {
     import ldc.attributes;
@@ -898,16 +902,6 @@ version (Posix)
     private __gshared int resumeSignalNumber;
 }
 
-version (DruntimeAbstractRt)
-{
-    import external.core.thread : external_attachThread;
-
-    private extern (D) ThreadBase attachThread(ThreadBase _thisThread) @nogc nothrow
-    {
-        return external_attachThread(_thisThread);
-    }
-}
-else
 private extern (D) ThreadBase attachThread(ThreadBase _thisThread) @nogc nothrow
 {
     Thread thisThread = _thisThread.toThread();
@@ -922,14 +916,7 @@ private extern (D) ThreadBase attachThread(ThreadBase _thisThread) @nogc nothrow
         thisContext.asan_fakestack = thisThread.asan_fakestack;
     }
 
-    version (Windows)
-    {
-        thisThread.m_addr  = GetCurrentThreadId();
-        thisThread.m_hndl  = GetCurrentThreadHandle();
-        thisContext.bstack = getStackBottom();
-        thisContext.tstack = thisContext.bstack;
-    }
-    else version (Posix)
+    version (Posix)
     {
         thisThread.m_addr  = pthread_self();
         thisContext.bstack = getStackBottom();
@@ -955,93 +942,6 @@ private extern (D) ThreadBase attachThread(ThreadBase _thisThread) @nogc nothrow
 }
 
 
-version (Windows)
-{
-    // NOTE: These calls are not safe on Posix systems that use signals to
-    //       perform garbage collection.  The suspendHandler uses getThis()
-    //       to get the thread handle so getThis() must be a simple call.
-    //       Mutexes can't safely be acquired inside signal handlers, and
-    //       even if they could, the mutex needed (Thread.slock) is held by
-    //       thread_suspendAll().  So in short, these routines will remain
-    //       Windows-specific.  If they are truly needed elsewhere, the
-    //       suspendHandler will need a way to call a version of getThis()
-    //       that only does the TLS lookup without the fancy fallback stuff.
-
-    /// ditto
-    extern (C) Thread thread_attachByAddr( ThreadID addr )
-    {
-        return thread_attachByAddrB( addr, getThreadStackBottom( addr ) );
-    }
-
-
-    /// ditto
-    extern (C) Thread thread_attachByAddrB( ThreadID addr, void* bstack )
-    {
-        GC.disable(); scope(exit) GC.enable();
-
-        if (auto t = thread_findByAddr(addr).toThread)
-            return t;
-
-        Thread        thisThread  = new Thread();
-        StackContext* thisContext = &thisThread.m_main;
-        assert( thisContext == thisThread.m_curr );
-
-        thisThread.m_addr  = addr;
-        thisContext.bstack = bstack;
-        thisContext.tstack = thisContext.bstack;
-
-        thisThread.m_isDaemon = true;
-
-        if ( addr == GetCurrentThreadId() )
-        {
-            thisThread.m_hndl = GetCurrentThreadHandle();
-            thisThread.tlsGCdataInit();
-            Thread.setThis( thisThread );
-
-            version (SupportSanitizers)
-            {
-                // Save this thread's fake stack handler, to be stored in each StackContext belonging to this thread.
-                thisThread.asan_fakestack  = asanGetCurrentFakeStack();
-            }
-        }
-        else
-        {
-            thisThread.m_hndl = OpenThreadHandle( addr );
-            impersonate_thread(addr,
-            {
-                thisThread.tlsGCdataInit();
-                Thread.setThis( thisThread );
-
-                version (SupportSanitizers)
-                {
-                    // Save this thread's fake stack handler, to be stored in each StackContext belonging to this thread.
-                    thisThread.asan_fakestack  = asanGetCurrentFakeStack();
-                }
-            });
-        }
-
-        version (SupportSanitizers)
-        {
-            thisContext.asan_fakestack = thisThread.asan_fakestack;
-        }
-
-        Thread.add( thisThread, false );
-        Thread.add( thisContext );
-        if ( Thread.sm_main !is null )
-            multiThreadedFlag = true;
-        return thisThread;
-    }
-}
-
-version (Windows)
-private extern (D) void scanWindowsOnly(scope ScanAllThreadsTypeFn scan, ThreadBase _t) nothrow
-{
-    auto t = _t.toThread;
-
-    scan( ScanType.stack, t.m_reg.ptr, t.m_reg.ptr + t.m_reg.length );
-}
-
-
 /**
  * Returns the process ID of the calling process, which is guaranteed to be
  * unique on the system. This call is always successful.
@@ -1056,10 +956,6 @@ version (Posix)
     import core.sys.posix.unistd;
 
     alias getpid = core.sys.posix.unistd.getpid;
-}
-else version (Windows)
-{
-    alias getpid = core.sys.windows.winbase.GetCurrentProcessId;
 }
 
 extern (C) @nogc nothrow
