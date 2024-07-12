@@ -177,24 +177,9 @@ class Thread : ThreadBase
     //
     // Standard thread data
     //
-    version (Windows)
+    version (all)
     {
         private HANDLE          m_hndl;
-    }
-
-    version (Posix)
-    {
-        private shared bool     m_isRunning;
-    }
-
-    version (Darwin)
-    {
-        private mach_port_t     m_tmach;
-    }
-
-    version (Solaris)
-    {
-        private __gshared bool m_isRTClass;
     }
 
     //
@@ -203,10 +188,6 @@ class Thread : ThreadBase
     version (Windows)
     {
         alias TLSKey = uint;
-    }
-    else version (Posix)
-    {
-        alias TLSKey = pthread_key_t;
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -266,28 +247,6 @@ class Thread : ThreadBase
             CloseHandle( m_hndl );
             m_hndl = m_hndl.init;
         }
-        else version (Posix)
-        {
-            if (m_addr != m_addr.init)
-            {
-                version (LDC)
-                {
-                    // don't detach the main thread, TSan doesn't like it:
-                    // https://github.com/ldc-developers/ldc/issues/3519
-                    if (!isMainThread())
-                        pthread_detach( m_addr );
-                }
-                else
-                {
-                    pthread_detach( m_addr );
-                }
-            }
-            m_addr = m_addr.init;
-        }
-        version (Darwin)
-        {
-            m_tmach = m_tmach.init;
-        }
     }
 
     //
@@ -333,42 +292,6 @@ class Thread : ThreadBase
             static assert(false, "Architecture not supported." );
         }
     }
-    else version (Darwin)
-    {
-        version (X86)
-        {
-            uint[8]         m_reg; // edi,esi,ebp,esp,ebx,edx,ecx,eax
-        }
-        else version (X86_64)
-        {
-            ulong[16]       m_reg; // rdi,rsi,rbp,rsp,rbx,rdx,rcx,rax
-                                   // r8,r9,r10,r11,r12,r13,r14,r15
-        }
-        else version (AArch64)
-        {
-            ulong[33]       m_reg; // x0-x31, pc
-        }
-        else version (ARM)
-        {
-            uint[16]        m_reg; // r0-r15
-        }
-        else version (PPC)
-        {
-            // Make the assumption that we only care about non-fp and non-vr regs.
-            // ??? : it seems plausible that a valid address can be copied into a VR.
-            uint[32]        m_reg; // r0-31
-        }
-        else version (PPC64)
-        {
-            // As above.
-            ulong[32]       m_reg; // r0-31
-        }
-        else
-        {
-            static assert(false, "Architecture not supported." );
-        }
-    }
-
 
     ///////////////////////////////////////////////////////////////////////////
     // General Actions
@@ -400,26 +323,13 @@ class Thread : ThreadBase
                 multiThreadedFlag = false;
         }
 
-        version (Windows) {} else
-        version (Posix)
-        {
-            size_t stksz = adjustStackSize( m_sz );
-
-            pthread_attr_t  attr;
-
-            if ( pthread_attr_init( &attr ) )
-                onThreadError( "Error initializing thread attributes" );
-            if ( stksz && pthread_attr_setstacksize( &attr, stksz ) )
-                onThreadError( "Error initializing thread stack size" );
-        }
-
         version (Shared)
         {
             auto ps = cast(void**).malloc(2 * size_t.sizeof);
             if (ps is null) onOutOfMemoryError();
         }
 
-        version (Windows)
+        version (all)
         {
             // NOTE: If a thread is just executing DllMain()
             //       while another thread is started here, it holds an OS internal
@@ -445,15 +355,6 @@ class Thread : ThreadBase
         {
             incrementAboutToStart(this);
 
-            version (Posix)
-            {
-                // NOTE: This is also set to true by thread_entryPoint, but set it
-                //       here as well so the calling thread will see the isRunning
-                //       state immediately.
-                atomicStore!(MemoryOrder.raw)(m_isRunning, true);
-                scope( failure ) atomicStore!(MemoryOrder.raw)(m_isRunning, false);
-            }
-
             version (Shared)
             {
                 auto libs = externDFunc!("rt.sections_elf_shared.pinLoadedLibraries",
@@ -462,7 +363,7 @@ class Thread : ThreadBase
                 ps[0] = cast(void*)this;
                 ps[1] = cast(void*)libs;
 
-                version (Windows)
+                version (all)
                 {
                     if ( ResumeThread( m_hndl ) == -1 )
                     {
@@ -470,44 +371,16 @@ class Thread : ThreadBase
                                      void function(void*) @nogc nothrow)(libs);
                         .free(ps);
                         onThreadError( "Error resuming thread" );
-                    }
-                }
-                else version (Posix)
-                {
-                    if ( pthread_create( &m_addr, &attr, &thread_entryPoint, ps ) != 0 )
-                    {
-                        externDFunc!("rt.sections_elf_shared.unpinLoadedLibraries",
-                                     void function(void*) @nogc nothrow)(libs);
-                        .free(ps);
-                        onThreadError( "Error creating thread" );
                     }
                 }
             }
             else
             {
-                version (Windows)
+                version (all)
                 {
                     if ( ResumeThread( m_hndl ) == -1 )
                         onThreadError( "Error resuming thread" );
                 }
-                else version (Posix)
-                {
-                    if ( pthread_create( &m_addr, &attr, &thread_entryPoint, cast(void*) this ) != 0 )
-                        onThreadError( "Error creating thread" );
-                }
-            }
-
-            version (Posix)
-            {
-                if ( pthread_attr_destroy( &attr ) != 0 )
-                    onThreadError( "Error destroying thread attributes" );
-            }
-
-            version (Darwin)
-            {
-                m_tmach = pthread_mach_thread_np( m_addr );
-                if ( m_tmach == m_tmach.init )
-                    onThreadError( "Error creating thread" );
             }
 
             return this;
@@ -543,16 +416,7 @@ class Thread : ThreadBase
             CloseHandle( m_hndl );
             m_hndl = m_hndl.init;
         }
-        else version (Posix)
-        {
-            if ( m_addr != m_addr.init && pthread_join( m_addr, null ) != 0 )
-                throw new ThreadException( "Unable to join thread" );
-            // NOTE: pthread_join acts as a substitute for pthread_detach,
-            //       which is normally called by the dtor.  Setting m_addr
-            //       to zero ensures that pthread_detach will not be called
-            //       on object destruction.
-            m_addr = m_addr.init;
-        }
+
         if ( m_unhandled )
         {
             if ( rethrow )
@@ -584,155 +448,6 @@ class Thread : ThreadBase
             return THREAD_PRIORITY_NORMAL;
         }
     }
-    else
-    {
-        private struct Priority
-        {
-            int PRIORITY_MIN = int.min;
-            int PRIORITY_DEFAULT = int.min;
-            int PRIORITY_MAX = int.min;
-        }
-
-        /*
-        Lazily loads one of the members stored in a hidden global variable of
-        type `Priority`. Upon the first access of either member, the entire
-        `Priority` structure is initialized. Multiple initializations from
-        different threads calling this function are tolerated.
-
-        `which` must be one of `PRIORITY_MIN`, `PRIORITY_DEFAULT`,
-        `PRIORITY_MAX`.
-        */
-        private static shared Priority cache;
-        private static int loadGlobal(string which)()
-        {
-            auto local = atomicLoad(mixin("cache." ~ which));
-            if (local != local.min) return local;
-            // There will be benign races
-            cache = loadPriorities;
-            return atomicLoad(mixin("cache." ~ which));
-        }
-
-        /*
-        Loads all priorities and returns them as a `Priority` structure. This
-        function is thread-neutral.
-        */
-        private static Priority loadPriorities() @nogc nothrow @trusted
-        {
-            Priority result;
-            version (Solaris)
-            {
-                pcparms_t pcParms;
-                pcinfo_t pcInfo;
-
-                pcParms.pc_cid = PC_CLNULL;
-                if (priocntl(idtype_t.P_PID, P_MYID, PC_GETPARMS, &pcParms) == -1)
-                    assert( 0, "Unable to get scheduling class" );
-
-                pcInfo.pc_cid = pcParms.pc_cid;
-                // PC_GETCLINFO ignores the first two args, use dummy values
-                if (priocntl(idtype_t.P_PID, 0, PC_GETCLINFO, &pcInfo) == -1)
-                    assert( 0, "Unable to get scheduling class info" );
-
-                pri_t* clparms = cast(pri_t*)&pcParms.pc_clparms;
-                pri_t* clinfo = cast(pri_t*)&pcInfo.pc_clinfo;
-
-                result.PRIORITY_MAX = clparms[0];
-
-                if (pcInfo.pc_clname == "RT")
-                {
-                    m_isRTClass = true;
-
-                    // For RT class, just assume it can't be changed
-                    result.PRIORITY_MIN = clparms[0];
-                    result.PRIORITY_DEFAULT = clparms[0];
-                }
-                else
-                {
-                    m_isRTClass = false;
-
-                    // For all other scheduling classes, there are
-                    // two key values -- uprilim and maxupri.
-                    // maxupri is the maximum possible priority defined
-                    // for the scheduling class, and valid priorities
-                    // range are in [-maxupri, maxupri].
-                    //
-                    // However, uprilim is an upper limit that the
-                    // current thread can set for the current scheduling
-                    // class, which can be less than maxupri.  As such,
-                    // use this value for priorityMax since this is
-                    // the effective maximum.
-
-                    // maxupri
-                    result.PRIORITY_MIN = -cast(int)(clinfo[0]);
-                    // by definition
-                    result.PRIORITY_DEFAULT = 0;
-                }
-            }
-            else version (Posix)
-            {
-                int         policy;
-                sched_param param;
-                pthread_getschedparam( pthread_self(), &policy, &param ) == 0
-                    || assert(0, "Internal error in pthread_getschedparam");
-
-                result.PRIORITY_MIN = sched_get_priority_min( policy );
-                result.PRIORITY_MIN != -1
-                    || assert(0, "Internal error in sched_get_priority_min");
-                result.PRIORITY_DEFAULT = param.sched_priority;
-                result.PRIORITY_MAX = sched_get_priority_max( policy );
-                result.PRIORITY_MAX != -1 ||
-                    assert(0, "Internal error in sched_get_priority_max");
-            }
-            else
-            {
-                static assert(0, "Your code here.");
-            }
-            return result;
-        }
-
-        /**
-         * The minimum scheduling priority that may be set for a thread.  On
-         * systems where multiple scheduling policies are defined, this value
-         * represents the minimum valid priority for the scheduling policy of
-         * the process.
-         */
-        @property static int PRIORITY_MIN() @nogc nothrow pure @trusted
-        {
-            return (cast(int function() @nogc nothrow pure @safe)
-                &loadGlobal!"PRIORITY_MIN")();
-        }
-
-        /**
-         * The maximum scheduling priority that may be set for a thread.  On
-         * systems where multiple scheduling policies are defined, this value
-         * represents the maximum valid priority for the scheduling policy of
-         * the process.
-         */
-        @property static const(int) PRIORITY_MAX() @nogc nothrow pure @trusted
-        {
-            return (cast(int function() @nogc nothrow pure @safe)
-                &loadGlobal!"PRIORITY_MAX")();
-        }
-
-        /**
-         * The default scheduling priority that is set for a thread.  On
-         * systems where multiple scheduling policies are defined, this value
-         * represents the default priority for the scheduling policy of
-         * the process.
-         */
-        @property static int PRIORITY_DEFAULT() @nogc nothrow pure @trusted
-        {
-            return (cast(int function() @nogc nothrow pure @safe)
-                &loadGlobal!"PRIORITY_DEFAULT")();
-        }
-    }
-
-    version (NetBSD)
-    {
-        //NetBSD does not support priority for default policy
-        // and it is not possible change policy without root access
-        int fakePriority = int.max;
-    }
 
     /**
      * Gets the scheduling priority for the associated thread.
@@ -745,26 +460,9 @@ class Thread : ThreadBase
      */
     final @property int priority()
     {
-        version (Windows)
+        version (all)
         {
             return GetThreadPriority( m_hndl );
-        }
-        else version (NetBSD)
-        {
-           return fakePriority==int.max? PRIORITY_DEFAULT : fakePriority;
-        }
-        else version (Posix)
-        {
-            int         policy;
-            sched_param param;
-
-            if (auto err = pthread_getschedparam(m_addr, &policy, &param))
-            {
-                // ignore error if thread is not running => Bugzilla 8960
-                if (!atomicLoad(m_isRunning)) return PRIORITY_DEFAULT;
-                throw new ThreadException("Unable to get thread priority");
-            }
-            return param.sched_priority;
         }
     }
 
@@ -786,73 +484,10 @@ class Thread : ThreadBase
     }
     do
     {
-        version (Windows)
+        version (all)
         {
             if ( !SetThreadPriority( m_hndl, val ) )
                 throw new ThreadException( "Unable to set thread priority" );
-        }
-        else version (Solaris)
-        {
-            // the pthread_setschedprio(3c) and pthread_setschedparam functions
-            // are broken for the default (TS / time sharing) scheduling class.
-            // instead, we use priocntl(2) which gives us the desired behavior.
-
-            // We hardcode the min and max priorities to the current value
-            // so this is a no-op for RT threads.
-            if (m_isRTClass)
-                return;
-
-            pcparms_t   pcparm;
-
-            pcparm.pc_cid = PC_CLNULL;
-            if (priocntl(idtype_t.P_LWPID, P_MYID, PC_GETPARMS, &pcparm) == -1)
-                throw new ThreadException( "Unable to get scheduling class" );
-
-            pri_t* clparms = cast(pri_t*)&pcparm.pc_clparms;
-
-            // clparms is filled in by the PC_GETPARMS call, only necessary
-            // to adjust the element that contains the thread priority
-            clparms[1] = cast(pri_t) val;
-
-            if (priocntl(idtype_t.P_LWPID, P_MYID, PC_SETPARMS, &pcparm) == -1)
-                throw new ThreadException( "Unable to set scheduling class" );
-        }
-        else version (NetBSD)
-        {
-           fakePriority = val;
-        }
-        else version (Posix)
-        {
-            static if (__traits(compiles, pthread_setschedprio))
-            {
-                if (auto err = pthread_setschedprio(m_addr, val))
-                {
-                    // ignore error if thread is not running => Bugzilla 8960
-                    if (!atomicLoad(m_isRunning)) return;
-                    throw new ThreadException("Unable to set thread priority");
-                }
-            }
-            else
-            {
-                // NOTE: pthread_setschedprio is not implemented on Darwin, FreeBSD, OpenBSD,
-                //       or DragonFlyBSD, so use the more complicated get/set sequence below.
-                int         policy;
-                sched_param param;
-
-                if (auto err = pthread_getschedparam(m_addr, &policy, &param))
-                {
-                    // ignore error if thread is not running => Bugzilla 8960
-                    if (!atomicLoad(m_isRunning)) return;
-                    throw new ThreadException("Unable to set thread priority");
-                }
-                param.sched_priority = val;
-                if (auto err = pthread_setschedparam(m_addr, policy, &param))
-                {
-                    // ignore error if thread is not running => Bugzilla 8960
-                    if (!atomicLoad(m_isRunning)) return;
-                    throw new ThreadException("Unable to set thread priority");
-                }
-            }
         }
     }
 
