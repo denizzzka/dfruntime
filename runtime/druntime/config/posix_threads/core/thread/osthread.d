@@ -12,8 +12,8 @@
 
 module core.thread.osthread;
 
-import core.thread.threadbase;
 public import core.thread.common;
+import core.thread.threadbase;
 import core.thread.context;
 import core.thread.types;
 import core.atomic;
@@ -22,7 +22,7 @@ import core.time;
 import core.exception : onOutOfMemoryError;
 import core.internal.traits : externDFunc;
 
-// Here the entire file is version(Posix), but I don't remove most of
+// Here the entire file is version (Posix), but I don't remove most of
 // these version branches so as not to distort code and not to complicate
 // future upstream merges.
 //
