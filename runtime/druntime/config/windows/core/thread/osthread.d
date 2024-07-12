@@ -970,12 +970,11 @@ extern (C) void thread_suspendAll() nothrow
  * Throws:
  *  ThreadError if the resume fails for a running thread.
  */
-version(DruntimeAbstractRt) {} else
 private extern (D) void resume(ThreadBase _t) nothrow @nogc
 {
     Thread t = _t.toThread;
 
-    version (Windows)
+    version (all)
     {
         if ( t.m_addr != GetCurrentThreadId() && ResumeThread( t.m_hndl ) == 0xFFFFFFFF )
         {
@@ -991,43 +990,6 @@ private extern (D) void resume(ThreadBase _t) nothrow @nogc
             t.m_curr.tstack = t.m_curr.bstack;
         t.m_reg[0 .. $] = 0;
     }
-    else version (Darwin)
-    {
-        if ( t.m_addr != pthread_self() && thread_resume( t.m_tmach ) != KERN_SUCCESS )
-        {
-            if ( !t.isRunning )
-            {
-                Thread.remove( t );
-                return;
-            }
-            onThreadError( "Unable to resume thread" );
-        }
-
-        if ( !t.m_lock )
-            t.m_curr.tstack = t.m_curr.bstack;
-        t.m_reg[0 .. $] = 0;
-    }
-    else version (Posix)
-    {
-        if ( t.m_addr != pthread_self() )
-        {
-            if ( pthread_kill( t.m_addr, resumeSignalNumber ) != 0 )
-            {
-                if ( !t.isRunning )
-                {
-                    Thread.remove( t );
-                    return;
-                }
-                onThreadError( "Unable to resume thread" );
-            }
-        }
-        else if ( !t.m_lock )
-        {
-            t.m_curr.tstack = t.m_curr.bstack;
-        }
-    }
-    else
-        static assert(false, "Platform not supported.");
 }
 
 
@@ -1036,9 +998,6 @@ private extern (D) void resume(ThreadBase _t) nothrow @nogc
  * garbage collector on startup and before any other thread routines
  * are called.
  */
-version (DruntimeAbstractRt)
-    public import external.core.thread : thread_init;
-else
 extern (C) void thread_init() @nogc nothrow
 {
     // NOTE: If thread_init itself performs any allocations then the thread
@@ -1050,87 +1009,6 @@ extern (C) void thread_init() @nogc nothrow
     initLowlevelThreads();
     Thread.initLocks();
 
-    version (Darwin)
-    {
-        // thread id different in forked child process
-        static extern(C) void initChildAfterFork()
-        {
-            auto thisThread = Thread.getThis();
-            if (!thisThread)
-            {
-                // It is possible that runtime was not properly initialized in the current process or thread -
-                // it may happen after `fork` call when using a dynamically loaded shared library written in D from a multithreaded non-D program.
-                // In such case getThis will return null.
-                return;
-            }
-            thisThread.m_addr = pthread_self();
-            assert( thisThread.m_addr != thisThread.m_addr.init );
-            thisThread.m_tmach = pthread_mach_thread_np( thisThread.m_addr );
-            assert( thisThread.m_tmach != thisThread.m_tmach.init );
-       }
-        pthread_atfork(null, null, &initChildAfterFork);
-    }
-    else version (Posix)
-    {
-        version (OpenBSD)
-        {
-            // OpenBSD does not support SIGRTMIN or SIGRTMAX
-            // Use SIGUSR1 for SIGRTMIN, SIGUSR2 for SIGRTMIN + 1
-            // And use 32 for SIGRTMAX (32 is the max signal number on OpenBSD)
-            enum SIGRTMIN = SIGUSR1;
-            enum SIGRTMAX = 32;
-        }
-
-        if ( suspendSignalNumber == 0 )
-        {
-            suspendSignalNumber = SIGRTMIN;
-        }
-
-        if ( resumeSignalNumber == 0 )
-        {
-            resumeSignalNumber = SIGRTMIN + 1;
-            assert(resumeSignalNumber <= SIGRTMAX);
-        }
-        int         status;
-        sigaction_t suspend = void;
-        sigaction_t resume = void;
-
-        // This is a quick way to zero-initialize the structs without using
-        // memset or creating a link dependency on their static initializer.
-        (cast(byte*) &suspend)[0 .. sigaction_t.sizeof] = 0;
-        (cast(byte*)  &resume)[0 .. sigaction_t.sizeof] = 0;
-
-        // NOTE: SA_RESTART indicates that system calls should restart if they
-        //       are interrupted by a signal, but this is not available on all
-        //       Posix systems, even those that support multithreading.
-        static if ( __traits( compiles, SA_RESTART ) )
-            suspend.sa_flags = SA_RESTART;
-
-        suspend.sa_handler = &thread_suspendHandler;
-        // NOTE: We want to ignore all signals while in this handler, so fill
-        //       sa_mask to indicate this.
-        status = sigfillset( &suspend.sa_mask );
-        assert( status == 0 );
-
-        // NOTE: Since resumeSignalNumber should only be issued for threads within the
-        //       suspend handler, we don't want this signal to trigger a
-        //       restart.
-        resume.sa_flags   = 0;
-        resume.sa_handler = &thread_resumeHandler;
-        // NOTE: We want to ignore all signals while in this handler, so fill
-        //       sa_mask to indicate this.
-        status = sigfillset( &resume.sa_mask );
-        assert( status == 0 );
-
-        status = sigaction( suspendSignalNumber, &suspend, null );
-        assert( status == 0 );
-
-        status = sigaction( resumeSignalNumber, &resume, null );
-        assert( status == 0 );
-
-        status = sem_init( &suspendCount, 0, 0 );
-        assert( status == 0 );
-    }
     _mainThreadStore[] = __traits(initSymbol, Thread)[];
     Thread.sm_main = attachThread((cast(Thread)_mainThreadStore.ptr).__ctor());
 }
