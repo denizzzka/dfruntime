@@ -896,150 +896,7 @@ private extern (D) bool suspend( Thread t ) nothrow @nogc
             static assert(false, "Architecture not supported." );
         }
     }
-    else version (Darwin)
-    {
-        if ( t.m_addr != pthread_self() && thread_suspend( t.m_tmach ) != KERN_SUCCESS )
-        {
-            if ( !t.isRunning )
-            {
-                Thread.remove( t );
-                return false;
-            }
-            onThreadError( "Unable to suspend thread" );
-        }
 
-        version (X86)
-        {
-            x86_thread_state32_t    state = void;
-            mach_msg_type_number_t  count = x86_THREAD_STATE32_COUNT;
-
-            if ( thread_get_state( t.m_tmach, x86_THREAD_STATE32, &state, &count ) != KERN_SUCCESS )
-                onThreadError( "Unable to load thread state" );
-            if ( !t.m_lock )
-                t.m_curr.tstack = cast(void*) state.esp;
-            // eax,ebx,ecx,edx,edi,esi,ebp,esp
-            t.m_reg[0] = state.eax;
-            t.m_reg[1] = state.ebx;
-            t.m_reg[2] = state.ecx;
-            t.m_reg[3] = state.edx;
-            t.m_reg[4] = state.edi;
-            t.m_reg[5] = state.esi;
-            t.m_reg[6] = state.ebp;
-            t.m_reg[7] = state.esp;
-        }
-        else version (X86_64)
-        {
-            x86_thread_state64_t    state = void;
-            mach_msg_type_number_t  count = x86_THREAD_STATE64_COUNT;
-
-            if ( thread_get_state( t.m_tmach, x86_THREAD_STATE64, &state, &count ) != KERN_SUCCESS )
-                onThreadError( "Unable to load thread state" );
-            if ( !t.m_lock )
-                t.m_curr.tstack = cast(void*) state.rsp;
-            // rax,rbx,rcx,rdx,rdi,rsi,rbp,rsp
-            t.m_reg[0] = state.rax;
-            t.m_reg[1] = state.rbx;
-            t.m_reg[2] = state.rcx;
-            t.m_reg[3] = state.rdx;
-            t.m_reg[4] = state.rdi;
-            t.m_reg[5] = state.rsi;
-            t.m_reg[6] = state.rbp;
-            t.m_reg[7] = state.rsp;
-            // r8,r9,r10,r11,r12,r13,r14,r15
-            t.m_reg[8]  = state.r8;
-            t.m_reg[9]  = state.r9;
-            t.m_reg[10] = state.r10;
-            t.m_reg[11] = state.r11;
-            t.m_reg[12] = state.r12;
-            t.m_reg[13] = state.r13;
-            t.m_reg[14] = state.r14;
-            t.m_reg[15] = state.r15;
-        }
-        else version (AArch64)
-        {
-            arm_thread_state64_t state = void;
-            mach_msg_type_number_t count = ARM_THREAD_STATE64_COUNT;
-
-            if (thread_get_state(t.m_tmach, ARM_THREAD_STATE64, &state, &count) != KERN_SUCCESS)
-                onThreadError("Unable to load thread state");
-            // TODO: ThreadException here recurses forever!  Does it
-            //still using onThreadError?
-            //printf("state count %d (expect %d)\n", count ,ARM_THREAD_STATE64_COUNT);
-            if (!t.m_lock)
-                t.m_curr.tstack = cast(void*) state.sp;
-
-            t.m_reg[0..29] = state.x;  // x0-x28
-            t.m_reg[29] = state.fp;    // x29
-            t.m_reg[30] = state.lr;    // x30
-            t.m_reg[31] = state.sp;    // x31
-            t.m_reg[32] = state.pc;
-        }
-        else version (ARM)
-        {
-            arm_thread_state32_t state = void;
-            mach_msg_type_number_t count = ARM_THREAD_STATE32_COUNT;
-
-            // Thought this would be ARM_THREAD_STATE32, but that fails.
-            // Mystery
-            if (thread_get_state(t.m_tmach, ARM_THREAD_STATE, &state, &count) != KERN_SUCCESS)
-                onThreadError("Unable to load thread state");
-            // TODO: in past, ThreadException here recurses forever!  Does it
-            //still using onThreadError?
-            //printf("state count %d (expect %d)\n", count ,ARM_THREAD_STATE32_COUNT);
-            if (!t.m_lock)
-                t.m_curr.tstack = cast(void*) state.sp;
-
-            t.m_reg[0..13] = state.r;  // r0 - r13
-            t.m_reg[13] = state.sp;
-            t.m_reg[14] = state.lr;
-            t.m_reg[15] = state.pc;
-        }
-        else version (PPC)
-        {
-            ppc_thread_state_t state = void;
-            mach_msg_type_number_t count = PPC_THREAD_STATE_COUNT;
-
-            if (thread_get_state(t.m_tmach, PPC_THREAD_STATE, &state, &count) != KERN_SUCCESS)
-                onThreadError("Unable to load thread state");
-            if (!t.m_lock)
-                t.m_curr.tstack = cast(void*) state.r[1];
-            t.m_reg[] = state.r[];
-        }
-        else version (PPC64)
-        {
-            ppc_thread_state64_t state = void;
-            mach_msg_type_number_t count = PPC_THREAD_STATE64_COUNT;
-
-            if (thread_get_state(t.m_tmach, PPC_THREAD_STATE64, &state, &count) != KERN_SUCCESS)
-                onThreadError("Unable to load thread state");
-            if (!t.m_lock)
-                t.m_curr.tstack = cast(void*) state.r[1];
-            t.m_reg[] = state.r[];
-        }
-        else
-        {
-            static assert(false, "Architecture not supported." );
-        }
-    }
-    else version (Posix)
-    {
-        if ( t.m_addr != pthread_self() )
-        {
-            if ( pthread_kill( t.m_addr, suspendSignalNumber ) != 0 )
-            {
-                if ( !t.isRunning )
-                {
-                    Thread.remove( t );
-                    return false;
-                }
-                onThreadError( "Unable to suspend thread" );
-            }
-        }
-        else if ( !t.m_lock )
-        {
-            t.m_curr.tstack = getStackTop();
-        }
-    }
     return true;
 }
 
@@ -1052,9 +909,6 @@ private extern (D) bool suspend( Thread t ) nothrow @nogc
  * Throws:
  *  ThreadError if the suspend operation fails for a running thread.
  */
-version (DruntimeAbstractRt)
-    public import external.core.thread: thread_suspendAll;
-else
 extern (C) void thread_suspendAll() nothrow
 {
     // NOTE: We've got an odd chicken & egg problem here, because while the GC
@@ -1098,28 +952,6 @@ extern (C) void thread_suspendAll() nothrow
                 ++cnt;
             }
             t = tn;
-        }
-
-        version (Darwin)
-        {}
-        else version (Posix)
-        {
-            // Subtract own thread if we called suspend() on ourselves.
-            // For example, suspendedSelf would be false if the current
-            // thread ran thread_detachThis().
-            assert(cnt >= 1);
-            if (suspendedSelf)
-                --cnt;
-            // wait for semaphore notifications
-            for (; cnt; --cnt)
-            {
-                while (sem_wait(&suspendCount) != 0)
-                {
-                    if (errno != EINTR)
-                        onThreadError("Unable to wait for semaphore");
-                    errno = 0;
-                }
-            }
         }
     }
 }
