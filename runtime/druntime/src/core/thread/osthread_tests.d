@@ -202,6 +202,13 @@ unittest
 }
 }
 
+@nogc @safe nothrow
+unittest
+{
+    import core.time;
+    Thread.sleep(1.msecs);
+}
+
 // regression test for Issue 13416
 version (FreeBSD) unittest
 {
