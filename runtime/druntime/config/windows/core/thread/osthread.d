@@ -12,6 +12,7 @@
 
 module core.thread.osthread;
 
+public import core.thread.common;
 import core.thread.threadbase;
 import core.thread.context;
 import core.thread.types;
@@ -20,6 +21,12 @@ import core.memory : GC, pageSize;
 import core.time;
 import core.exception : onOutOfMemoryError;
 import core.internal.traits : externDFunc;
+
+// Here the entire file is version (Windows), but I don't remove most of
+// these version branches so as not to distort code and not to complicate
+// future upstream merges.
+//
+// Some version (Windows) renamed to version (all) to further protection from errors
 
 version (LDC)
 {
@@ -51,15 +58,6 @@ version (LDC)
 // Platform Detection and Memory Allocation
 ///////////////////////////////////////////////////////////////////////////////
 
-version (OSX)
-    version = Darwin;
-else version (iOS)
-    version = Darwin;
-else version (TVOS)
-    version = Darwin;
-else version (WatchOS)
-    version = Darwin;
-
 version (D_InlineAsm_X86)
 {
     version (Windows)
@@ -79,25 +77,7 @@ else version (D_InlineAsm_X86_64)
     }
 }
 
-version (Posix)
-{
-    version (AsmX86_Windows)    {} else
-    version (AsmX86_Posix)      {} else
-    version (AsmX86_64_Windows) {} else
-    version (AsmX86_64_Posix)   {} else
-    version (AsmExternal)       {} else
-    {
-        // NOTE: The ucontext implementation requires architecture specific
-        //       data definitions to operate so testing for it must be done
-        //       by checking for the existence of ucontext_t rather than by
-        //       a version identifier.  Please note that this is considered
-        //       an obsolescent feature according to the POSIX spec, so a
-        //       custom solution is still preferred.
-        import core.sys.posix.ucontext;
-    }
-}
-
-version (Windows)
+version (all)
 {
     import core.stdc.stdint : uintptr_t; // for _beginthreadex decl below
     import core.stdc.stdlib;             // for malloc, atexit
@@ -113,28 +93,6 @@ version (Windows)
 
     private extern (Windows) alias btex_fptr = uint function(void*);
     private extern (C) uintptr_t _beginthreadex(void*, uint, btex_fptr, void*, uint, uint*) nothrow @nogc;
-}
-else version (Posix)
-{
-    import core.stdc.errno;
-    import core.sys.posix.semaphore;
-    import core.sys.posix.stdlib; // for malloc, valloc, free, atexit
-    import core.sys.posix.pthread;
-    import core.sys.posix.signal;
-    import core.sys.posix.time;
-
-    version (Darwin)
-    {
-        import core.sys.darwin.mach.thread_act;
-        import core.sys.darwin.pthread : pthread_mach_thread_np;
-    }
-}
-
-version (Solaris)
-{
-    import core.sys.solaris.sys.priocntl;
-    import core.sys.solaris.sys.types;
-    import core.sys.posix.sys.wait : idtype_t;
 }
 
 version (GNU)
@@ -201,13 +159,6 @@ version (all)
         }
     }
 }
-else
-{
-    extern(D) void* swapContext(void* newContext) nothrow @nogc
-    {
-        return _d_eh_swapContext(newContext);
-    }
-}
 
 ///////////////////////////////////////////////////////////////////////////////
 // Thread
@@ -221,9 +172,6 @@ else
  * A new thread may be created using either derivation or composition, as
  * in the following example.
  */
-version (DruntimeAbstractRt)
-    public import external.core.thread: Thread;
-else
 class Thread : ThreadBase
 {
     //
