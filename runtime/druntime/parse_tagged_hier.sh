@@ -45,25 +45,25 @@ function applyTaggedFiles {
 
 for tag in "${TAGS_LIST[@]}"
 do
-    WARN_ACCUM=""
+    WARN_ACCUM="Warnings:\n"
 
     applyTaggedFiles ${tag} ${SRC_DIR}
 
     if [ -v SRC_DIR_ADDITIONAL ]; then
         applyTaggedFiles ${tag} ${SRC_DIR_ADDITIONAL}
 
-        if [[ $(echo ${WARN_ACCUM} | grep -c '^') -gt 1 ]]; then
-            echo -ne "2: ${WARN_ACCUM}" >&2
+        if [[ $(echo ${WARN_ACCUM} | grep -c '^') -gt 2 ]]; then
+            echo -ne "${WARN_ACCUM}" >&2
         fi
     else
-        if [[ $(echo ${WARN_ACCUM} | grep -c '^') -gt 0 ]]; then
-            echo -ne "1: ${WARN_ACCUM}" >&2
+        if [[ $(echo ${WARN_ACCUM} | grep -c '^') -gt 1 ]]; then
+            echo -ne "${WARN_ACCUM}" >&2
         fi
     fi
 
     APPLIED+=" $tag"
 
-    echo "Currently applied tags:$APPLIED"
+    #echo "Currently applied tags:$APPLIED"
 done
 
 LINES_TO_COPY=$(grep -v '^$' ${SRC_COPY_FILE} | sort | uniq | wc -l)
