@@ -180,37 +180,11 @@ struct MonoTimeImpl(ClockType clockType)
                       ") failed to get the frequency of the system's monotonic clock.");
         }
 
-        version (Windows)
+        version (all)
         {
             long ticks = void;
             QueryPerformanceCounter(&ticks);
             return MonoTimeImpl(ticks);
-        }
-        else version (Darwin)
-            return MonoTimeImpl(mach_absolute_time());
-        else version (Posix)
-        {
-            timespec ts = void;
-            immutable error = clock_gettime(clockArg, &ts);
-            // clockArg is supported and if tv_sec is long or larger
-            // overflow won't happen before 292 billion years A.D.
-            static if (ts.tv_sec.max < long.max)
-            {
-                if (error)
-                {
-                    import core.internal.abort : abort;
-                    abort("Call to clock_gettime failed.");
-                }
-            }
-            return MonoTimeImpl(convClockFreq(ts.tv_sec * 1_000_000_000L + ts.tv_nsec,
-                                              1_000_000_000L,
-                                              ticksPerSecond));
-        }
-        else version (DruntimeAbstractRt)
-        {
-            import external.core.time : currTicks;
-
-            return MonoTimeImpl(currTicks);
         }
     }
 
@@ -545,7 +519,7 @@ extern(C) void _d_initMonoTime() @nogc nothrow
     // all.
     version (CoreDdoc)
     {}
-    else version (Windows)
+    else version (all)
     {
         long ticksPerSecond;
         if (QueryPerformanceFrequency(&ticksPerSecond) != 0)
@@ -560,70 +534,6 @@ extern(C) void _d_initMonoTime() @nogc nothrow
             }
         }
     }
-    else version (Darwin)
-    {
-        immutable long ticksPerSecond = machTicksPerSecond();
-        foreach (i, typeStr; __traits(allMembers, ClockType))
-        {
-            // ensure we are only writing immutable data once
-            if (tps[i] != 0)
-                // should only be called once
-                assert(0);
-            tps[i] = ticksPerSecond;
-        }
-    }
-    else version (Posix)
-    {
-        timespec ts;
-        foreach (i, typeStr; __traits(allMembers, ClockType))
-        {
-            static if (typeStr != "second")
-            {
-                enum clockArg = _posixClock(__traits(getMember, ClockType, typeStr));
-                if (clock_getres(clockArg, &ts) == 0)
-                {
-                    // ensure we are only writing immutable data once
-                    if (tps[i] != 0)
-                        // should only be called once
-                        assert(0);
-
-                    // For some reason, on some systems, clock_getres returns
-                    // a resolution which is clearly wrong:
-                    //  - it's a millisecond or worse, but the time is updated
-                    //    much more frequently than that.
-                    //  - it's negative
-                    //  - it's zero
-                    // In such cases, we'll just use nanosecond resolution.
-                    tps[i] = ts.tv_sec != 0 || ts.tv_nsec <= 0 || ts.tv_nsec >= 1000
-                        ? 1_000_000_000L : 1_000_000_000L / ts.tv_nsec;
-                }
-            }
-        }
-    }
-    else version (DruntimeAbstractRt)
-    {
-        import external.core.time : initTicksPerSecond;
-
-        initTicksPerSecond(tps);
-    }
-    else
-        static assert(0, "Unsupported platform");
-}
-
-version (Darwin)
-long machTicksPerSecond() @nogc nothrow
-{
-    // Be optimistic that ticksPerSecond (1e9*denom/numer) is integral. So far
-    // so good on Darwin based platforms OS X, iOS.
-    import core.internal.abort : abort;
-    mach_timebase_info_data_t info;
-    if (mach_timebase_info(&info) != 0)
-        abort("Failed in mach_timebase_info().");
-
-    long scaledDenom = 1_000_000_000L * info.denom;
-    if (scaledDenom % info.numer != 0)
-        abort("Non integral ticksPerSecond from mach_timebase_info.");
-    return scaledDenom / info.numer;
 }
 
 version (CoreUnittest) deprecated
@@ -631,50 +541,11 @@ version (CoreUnittest) deprecated
     package @property TickDuration currSystemTick() @trusted nothrow @nogc
     {
         import core.internal.abort : abort;
-        version (Windows)
+        version (all)
         {
             ulong ticks = void;
             QueryPerformanceCounter(cast(long*)&ticks);
             return TickDuration(ticks);
-        }
-        else version (Darwin)
-        {
-            static if (is(typeof(mach_absolute_time)))
-                return TickDuration(cast(long)mach_absolute_time());
-            else
-            {
-                timeval tv = void;
-                gettimeofday(&tv, null);
-                return TickDuration(tv.tv_sec * TickDuration.ticksPerSec +
-                                    tv.tv_usec * TickDuration.ticksPerSec / 1000 / 1000);
-            }
-        }
-        else version (Posix)
-        {
-            static if (is(typeof(clock_gettime)))
-            {
-                timespec ts = void;
-                immutable error = clock_gettime(CLOCK_MONOTONIC, &ts);
-                // CLOCK_MONOTONIC is supported and if tv_sec is long or larger
-                // overflow won't happen before 292 billion years A.D.
-                static if (ts.tv_sec.max < long.max)
-                {
-                    if (error)
-                    {
-                        import core.internal.abort : abort;
-                        abort("Call to clock_gettime failed.");
-                    }
-                }
-                return TickDuration(ts.tv_sec * TickDuration.ticksPerSec +
-                                    ts.tv_nsec * TickDuration.ticksPerSec / 1000 / 1000 / 1000);
-            }
-            else
-            {
-                timeval tv = void;
-                gettimeofday(&tv, null);
-                return TickDuration(tv.tv_sec * TickDuration.ticksPerSec +
-                                    tv.tv_usec * TickDuration.ticksPerSec / 1000 / 1000);
-            }
         }
     }
 }
