@@ -68,11 +68,7 @@ module core.time;
 public import core.time.common;
 import core.internal.string;
 
-version (Windows)
-{
-import core.sys.windows.winbase /+: QueryPerformanceCounter, QueryPerformanceFrequency+/;
-}
-else version (Posix)
+version (all)
 {
 import core.sys.posix.time;
 import core.sys.posix.sys.time;
@@ -256,13 +252,6 @@ version (CoreDdoc) enum ClockType
       +/
     uptimePrecise = 10,
 }
-else version (Windows) enum ClockType
-{
-    normal = 0,
-    coarse = 2,
-    precise = 3,
-    second = 6,
-}
 else version (Darwin) enum ClockType
 {
     normal = 0,
@@ -333,8 +322,8 @@ else
     // It needs to be decided (and implemented in an appropriate version branch
     // here) which clock types new platforms are going to support. At minimum,
     // the ones _not_ marked with $(D Blue Foo-Only) should be supported.
-    //TODO: move ClockType definition from core.std.*
-    public import core.stdc.time_impl: ClockType;
+
+    static assert(0, "Unsupported platform");
 }
 
 // private, used to translate clock type to proper argument to clock_xxx
@@ -492,7 +481,7 @@ struct MonoTimeImpl(ClockType clockType)
 
 @safe:
 
-    version (Windows)
+    version (Darwin)
     {
         static if (clockType != ClockType.coarse &&
                   clockType != ClockType.normal &&
@@ -502,25 +491,10 @@ struct MonoTimeImpl(ClockType clockType)
                              " is not supported by MonoTimeImpl on this system.");
         }
     }
-    else version (Darwin)
-    {
-        static if (clockType != ClockType.coarse &&
-                  clockType != ClockType.normal &&
-                  clockType != ClockType.precise)
-        {
-            static assert(0, "ClockType." ~ _clockName ~
-                             " is not supported by MonoTimeImpl on this system.");
-        }
-    }
-    else version (Posix)
+    else
     {
         enum clockArg = _posixClock(clockType);
     }
-    else version (DruntimeAbstractRt)
-    {
-    }
-    else
-        static assert(0, "Unsupported platform");
 
     // POD value, test mutable/const/immutable conversion
     version (CoreUnittest) unittest
@@ -558,15 +532,9 @@ struct MonoTimeImpl(ClockType clockType)
                       ") failed to get the frequency of the system's monotonic clock.");
         }
 
-        version (Windows)
-        {
-            long ticks = void;
-            QueryPerformanceCounter(&ticks);
-            return MonoTimeImpl(ticks);
-        }
-        else version (Darwin)
+        version (Darwin)
             return MonoTimeImpl(mach_absolute_time());
-        else version (Posix)
+        else
         {
             timespec ts = void;
             immutable error = clock_gettime(clockArg, &ts);
@@ -583,12 +551,6 @@ struct MonoTimeImpl(ClockType clockType)
             return MonoTimeImpl(convClockFreq(ts.tv_sec * 1_000_000_000L + ts.tv_nsec,
                                               1_000_000_000L,
                                               ticksPerSecond));
-        }
-        else version (DruntimeAbstractRt)
-        {
-            import external.core.time : currTicks;
-
-            return MonoTimeImpl(currTicks);
         }
     }
 
@@ -923,21 +885,6 @@ extern(C) void _d_initMonoTime() @nogc nothrow
     // all.
     version (CoreDdoc)
     {}
-    else version (Windows)
-    {
-        long ticksPerSecond;
-        if (QueryPerformanceFrequency(&ticksPerSecond) != 0)
-        {
-            foreach (i, typeStr; __traits(allMembers, ClockType))
-            {
-                // ensure we are only writing immutable data once
-                if (tps[i] != 0)
-                    // should only be called once
-                    assert(0);
-                tps[i] = ticksPerSecond;
-            }
-        }
-    }
     else version (Darwin)
     {
         immutable long ticksPerSecond = machTicksPerSecond();
@@ -978,12 +925,6 @@ extern(C) void _d_initMonoTime() @nogc nothrow
             }
         }
     }
-    else version (DruntimeAbstractRt)
-    {
-        import external.core.time : initTicksPerSecond;
-
-        initTicksPerSecond(tps);
-    }
     else
         static assert(0, "Unsupported platform");
 }
@@ -1009,13 +950,7 @@ version (CoreUnittest) deprecated
     package @property TickDuration currSystemTick() @trusted nothrow @nogc
     {
         import core.internal.abort : abort;
-        version (Windows)
-        {
-            ulong ticks = void;
-            QueryPerformanceCounter(cast(long*)&ticks);
-            return TickDuration(ticks);
-        }
-        else version (Darwin)
+        version (Darwin)
         {
             static if (is(typeof(mach_absolute_time)))
                 return TickDuration(cast(long)mach_absolute_time());
@@ -1027,7 +962,7 @@ version (CoreUnittest) deprecated
                                     tv.tv_usec * TickDuration.ticksPerSec / 1000 / 1000);
             }
         }
-        else version (Posix)
+        else
         {
             static if (is(typeof(clock_gettime)))
             {
@@ -1063,13 +998,6 @@ package
     {
         long ticksPerSec;
 
-        version (DruntimeAbstractRt)
-        {
-            import external.core.time : _ticksPerSec;
-
-            ticksPerSec = _ticksPerSec;
-        }
-        else
         version (Darwin)
         {
             ticksPerSec = machTicksPerSecond();
