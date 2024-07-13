@@ -1,4 +1,4 @@
-module freertos_binding;
+module internal.binding;
 
 
         import core.stdc.config;
