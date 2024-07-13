@@ -35,7 +35,7 @@ import core.time;
     //~ return TickDuration(currTicks);
 //~ }
 
-static import os = freertos_binding;
+static import os = internal.binding;
 
 long currTicks() @trusted nothrow @nogc
 {

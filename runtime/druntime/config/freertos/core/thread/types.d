@@ -1,6 +1,6 @@
 module core.thread.types;
 
-import freertos_binding: TaskHandle_t;
+import internal.binding /*freertos_binding*/ : TaskHandle_t;
 public import core.thread.stack: isStackGrowingDown;
 
 alias ThreadID = TaskHandle_t;

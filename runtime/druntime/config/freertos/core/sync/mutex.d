@@ -1,7 +1,7 @@
 module core.sync.mutex;
 
 import object;
-import freertos_binding;
+import internal.binding /*freertos_binding*/;
 
 @nogc:
 

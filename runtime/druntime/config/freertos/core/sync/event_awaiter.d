@@ -1,6 +1,6 @@
 module core.sync.event_awaiter;
 
-static import os = freertos_binding;
+static import os = internal.binding /*freertos_binding*/;
 import core.time;
 import core.internal.abort : abort;
 

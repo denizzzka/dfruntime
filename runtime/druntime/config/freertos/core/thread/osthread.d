@@ -5,7 +5,7 @@ import core.sync.event: Event;
 import core.time: Duration;
 import core.thread.threadbase: ThreadBase;
 import core.thread.types;
-static import os = freertos_binding;
+static import os = internal.binding /*freertos_binding*/;
 
 enum DefaultTaskPriority = 3;
 enum DefaultStackSize = 2048 * os.StackType_t.sizeof;
