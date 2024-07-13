@@ -2308,15 +2308,7 @@ deprecated:
 
     static pragma(crt_constructor) void time_initializer()
     {
-        version (Windows)
-        {
-            import core.sys.windows.winbase: QueryPerformanceFrequency;
-
-            if (QueryPerformanceFrequency(cast(long*)&ticksPerSec) == 0)
-                ticksPerSec = 0;
-        }
-        else
-            ticksPerSec = core.time.getTicksPerSec();
+        ticksPerSec = core.time.getTicksPerSec();
 
         if (ticksPerSec != 0)
             appOrigin = TickDuration.currSystemTick;

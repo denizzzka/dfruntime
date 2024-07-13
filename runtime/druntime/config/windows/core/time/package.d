@@ -139,6 +139,18 @@ version (CoreUnittest) deprecated
     }
 }
 
+deprecated package long getTicksPerSec()
+{
+    import core.sys.windows.winbase: QueryPerformanceFrequency;
+
+    long ticksPerSec;
+
+    if (QueryPerformanceFrequency(&ticksPerSec) == 0)
+        ticksPerSec = 0;
+
+    return ticksPerSec;
+}
+
 package long getCurrMonoTime(MT, alias ClockType clockType)() @trusted nothrow @nogc
 {
     long ticks = void;
