@@ -11,3 +11,4 @@ core\sync\event_awaiter.d
 core\sync\mutex.d
 core\thread\osthread.d
 core\thread\types.d
+core\time\package.d
