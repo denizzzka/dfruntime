@@ -1893,46 +1893,15 @@ deprecated:
 
     static pragma(crt_constructor) void time_initializer()
     {
-        version (DruntimeAbstractRt)
-        {
-            import external.core.time : _ticksPerSec;
-
-            ticksPerSec = _ticksPerSec;
-        }
-        else
         version (Windows)
         {
+            import core.sys.windows.winbase: QueryPerformanceFrequency;
+
             if (QueryPerformanceFrequency(cast(long*)&ticksPerSec) == 0)
                 ticksPerSec = 0;
         }
-        else version (Darwin)
-        {
-            ticksPerSec = machTicksPerSecond();
-        }
-        else version (Posix)
-        {
-            static if (is(typeof(clock_gettime)))
-            {
-                timespec ts;
-
-                if (clock_getres(CLOCK_MONOTONIC, &ts) != 0)
-                    ticksPerSec = 0;
-                else
-                {
-                    //For some reason, on some systems, clock_getres returns
-                    //a resolution which is clearly wrong (it's a millisecond
-                    //or worse, but the time is updated much more frequently
-                    //than that). In such cases, we'll just use nanosecond
-                    //resolution.
-                    ticksPerSec = ts.tv_nsec >= 1000 ? 1_000_000_000
-                                                     : 1_000_000_000 / ts.tv_nsec;
-                }
-            }
-            else
-                ticksPerSec = 1_000_000;
-        }
         else
-            static assert(0, "Unsupported platform");
+            ticksPerSec = core.time.getTicksPerSec();
 
         if (ticksPerSec != 0)
             appOrigin = TickDuration.currSystemTick;
