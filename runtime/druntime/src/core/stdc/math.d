@@ -1599,6 +1599,11 @@ else version (CRuntime_Bionic)
     ///
     pragma(mangle, "__signbitl") pure int signbit(real x);
 }
+else
+{
+    //FIXME: remove
+    pure int isnan(double);
+}
 
 extern (D)
 {
