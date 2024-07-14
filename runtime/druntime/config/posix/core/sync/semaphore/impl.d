@@ -15,8 +15,8 @@
 module core.sync.semaphore.impl;
 
 
-public import core.sync.exception;
-public import core.time;
+import core.sync.exception;
+import core.time;
 
 version (OSX)
     version = Darwin;
