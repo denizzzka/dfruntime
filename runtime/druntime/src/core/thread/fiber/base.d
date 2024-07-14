@@ -11,7 +11,7 @@
 
 module core.thread.fiber.base;
 
-import core.thread.fiber: fiber_switchContext;
+import core.thread.fiber;
 import core.thread.threadbase;
 import core.thread.threadgroup;
 import core.thread.types;
@@ -65,130 +65,6 @@ version (Windows)
     import core.stdc.stdlib : malloc, free;
     import core.sys.windows.winbase;
     import core.sys.windows.winnt;
-}
-
-private
-{
-    version (D_InlineAsm_X86)
-    {
-        version (Windows)
-            version = AsmX86_Windows;
-        else version (Posix)
-            version = AsmX86_Posix;
-
-        version = AlignFiberStackTo16Byte;
-    }
-    else version (D_InlineAsm_X86_64)
-    {
-        version (Windows)
-        {
-            version = AsmX86_64_Windows;
-            version = AlignFiberStackTo16Byte;
-        }
-        else version (Posix)
-        {
-            version = AsmX86_64_Posix;
-            version = AlignFiberStackTo16Byte;
-        }
-    }
-    else version (PPC)
-    {
-        version (OSX)
-        {
-            version = AsmPPC_Darwin;
-            version = AsmExternal;
-            version = AlignFiberStackTo16Byte;
-        }
-        else version (Posix)
-        {
-            version = AsmPPC_Posix;
-            version = AsmExternal;
-        }
-    }
-    else version (PPC64)
-    {
-        version (OSX)
-        {
-            version = AsmPPC_Darwin;
-            version = AsmExternal;
-            version = AlignFiberStackTo16Byte;
-        }
-        else version (Posix)
-        {
-            version = AsmPPC64_Posix;
-            version = AsmExternal;
-            version = AlignFiberStackTo16Byte;
-        }
-    }
-    else version (MIPS_O32)
-    {
-        version (Posix)
-        {
-            version = AsmMIPS_O32_Posix;
-            version = AsmExternal;
-        }
-    }
-    else version (MIPS_N64)
-    {
-        version (Posix)
-        {
-            version = AsmMIPS_N64_Posix;
-            version = AsmExternal;
-        }
-    }
-    else version (AArch64)
-    {
-        version (Posix)
-        {
-            version = AsmAArch64_Posix;
-            version = AsmExternal;
-            version = AlignFiberStackTo16Byte;
-        }
-    }
-    else version (ARM)
-    {
-        version (Posix)
-        {
-            version = AsmARM_Posix;
-            version = AsmExternal;
-        }
-    }
-    else version (SPARC)
-    {
-        // NOTE: The SPARC ABI specifies only doubleword alignment.
-        version = AlignFiberStackTo16Byte;
-    }
-    else version (SPARC64)
-    {
-        version = AlignFiberStackTo16Byte;
-    }
-    else version (LoongArch64)
-    {
-        version (Posix)
-        {
-            version = AsmLoongArch64_Posix;
-            version = AsmExternal;
-            version = AlignFiberStackTo16Byte;
-        }
-    }
-
-    version (Posix)
-    {
-        version (AsmX86_Windows)    {} else
-        version (AsmX86_Posix)      {} else
-        version (AsmX86_64_Windows) {} else
-        version (AsmX86_64_Posix)   {} else
-        version (AsmExternal)       {} else
-        {
-            // NOTE: The ucontext implementation requires architecture specific
-            //       data definitions to operate so testing for it must be done
-            //       by checking for the existence of ucontext_t rather than by
-            //       a version identifier.  Please note that this is considered
-            //       an obsolescent feature according to the POSIX spec, so a
-            //       custom solution is still preferred.
-            import core.sys.posix.ucontext;
-        }
-    }
 }
 
 package

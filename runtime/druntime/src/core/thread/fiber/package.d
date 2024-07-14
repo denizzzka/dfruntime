@@ -67,7 +67,7 @@ version (Windows)
     import core.sys.windows.winnt;
 }
 
-private
+package
 {
     version (D_InlineAsm_X86)
     {
