@@ -137,7 +137,9 @@ nothrow @nogc:
         if (!m_initalized)
             return false;
 
-        return m_event.wait();
+        m_event.wait();
+
+        return true;
     }
 
     /**
