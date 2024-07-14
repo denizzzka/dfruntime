@@ -5,6 +5,7 @@ core\stdc\assert_.d
 core\stdc\errno.d
 core\stdc\fenv.d
 core\stdc\limits.d
+core\stdc\locale.d
 core\stdc\math.d
 core\stdc\stddef.d
 core\stdc\stdint.d
