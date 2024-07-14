@@ -638,7 +638,7 @@ class Fiber : FiberBase
         }
     }
 
-private:
+protected:
     ///////////////////////////////////////////////////////////////////////////
     // Stack Management
     ///////////////////////////////////////////////////////////////////////////
@@ -647,7 +647,7 @@ private:
     //
     // Allocate a new stack for this fiber.
     //
-    protected final override void allocStack( size_t sz, size_t guardPageSize ) nothrow
+    final override void allocStack( size_t sz, size_t guardPageSize ) nothrow
     in
     {
         assert( !m_pmem && !m_ctxt );
@@ -802,7 +802,7 @@ private:
     //
     // Free this fiber's stack.
     //
-    protected final override void freeStack() nothrow @nogc
+    final override void freeStack() nothrow @nogc
     in(m_pmem)
     in(m_ctxt)
     {
@@ -839,7 +839,7 @@ private:
     // Initialize the allocated stack.
     // Look above the definition of 'class Fiber' for some information about the implementation of this routine
     //
-    protected final override void initStack() nothrow @nogc
+    final override void initStack() nothrow @nogc
     in
     {
         assert( m_ctxt.tstack && m_ctxt.tstack == m_ctxt.bstack );
