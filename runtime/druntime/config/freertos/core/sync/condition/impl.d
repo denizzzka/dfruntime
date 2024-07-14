@@ -7,12 +7,12 @@ package enum isImplemented = false;
 
 class Condition
 {
-    this(Mutex m, size_t capacity = 0) nothrow
+    this(Mutex m, size_t capacity = 0) nothrow @safe
     {
         assert(false, "Not implemented");
     }
 
-    this(shared Mutex m, size_t capacity = 0) shared nothrow
+    this(shared Mutex m, size_t capacity = 0) shared nothrow @safe
     {
         assert(false, "Not implemented");
     }
