@@ -20,7 +20,7 @@ class Mutex : Object.Monitor
             abort("Error: memory required to hold mutex could not be allocated.");
     }
 
-    this() @nogc shared
+    this() @nogc shared nothrow @safe
     {
         assert(false);
     }
@@ -40,6 +40,15 @@ class Mutex : Object.Monitor
             syncErr.msg = "Unable to lock mutex.";
             throw syncErr;
         }
+    }
+
+    final bool tryLock_nothrow(this Q)() nothrow @safe @nogc
+        if (is(Q == Mutex) || is(Q == shared Mutex))
+    {
+        //FIXME: lock_nothrow can lock into infinity wait
+        lock_nothrow();
+
+        return true;
     }
 
     final void unlock_nothrow(this Q)() nothrow @trusted @nogc
@@ -62,6 +71,11 @@ class Mutex : Object.Monitor
     @trusted void lock() shared
     {
         lock_nothrow();
+    }
+
+    bool tryLock() @safe
+    {
+        return tryLock_nothrow();
     }
 
     @trusted void unlock()
