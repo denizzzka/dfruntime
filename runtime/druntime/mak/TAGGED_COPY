@@ -13,6 +13,7 @@ core\stdc\stdlib_details.d
 core\stdc\time_impl.d
 core\stdc\wchar_.d
 core\sync\condition\impl.d
+core\sync\semaphore\impl.d
 core\sync\event_awaiter.d
 core\sync\mutex.d
 core\time\package.d
