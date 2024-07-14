@@ -303,8 +303,6 @@ public:
         }
     }
 
-    version (DruntimeAbstractRt) {} //FIXME: TickDuration is broken
-    else
     version (CoreUnittest) deprecated unittest
     {
         foreach (D; AliasSeq!(Duration, const Duration, immutable Duration))
@@ -358,8 +356,6 @@ public:
         return Duration(mixin("lhs.hnsecs " ~ op ~ " _hnsecs"));
     }
 
-    version (DruntimeAbstractRt) {} //FIXME: TickDuration is broken
-    else
     version (CoreUnittest) deprecated unittest
     {
         foreach (D; AliasSeq!(Duration, const Duration, immutable Duration))
@@ -461,8 +457,6 @@ public:
             test1!"%="(Duration(-7), (cast(E)Duration(-5)), Duration(-2));
         }
 
-        version(DruntimeAbstractRt) {} //FIXME: TickDuration is broken
-        else
         foreach (D; AliasSeq!(const Duration, immutable Duration))
         {
             foreach (E; AliasSeq!(Duration, const Duration, immutable Duration))
