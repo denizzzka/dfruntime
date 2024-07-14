@@ -4,6 +4,8 @@ core\memory\impl.d
 core\stdc\assert_.d
 core\stdc\errno.d
 core\stdc\fenv.d
+core\stdc\limits.d
+core\stdc\math.d
 core\stdc\stddef.d
 core\stdc\stdint.d
 core\stdc\stdio_details.d
