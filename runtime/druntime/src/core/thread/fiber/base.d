@@ -11,6 +11,8 @@
 
 module core.thread.fiber.base;
 
+package:
+
 import core.thread.fiber;
 import core.thread.threadbase;
 import core.thread.threadgroup;
