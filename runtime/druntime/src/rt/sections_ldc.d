@@ -330,9 +330,9 @@ void initSections() nothrow @nogc
 
         scanSegments(phdr, &globalSectionGroup);
     }
-    else version (DruntimeAbstractRt)
+    else
     {
-        import external.rt.sections : fillGlobalSectionGroup;
+        import rt.sections : fillGlobalSectionGroup;
 
         fillGlobalSectionGroup(globalSectionGroup);
     }
@@ -351,11 +351,7 @@ void finiSections() nothrow @nogc
 /***
  * Called once per thread; returns array of thread local storage ranges
  */
-version (DruntimeAbstractRt)
-{
-    import external.rt.sections : initTLSRanges;
-}
-else version (UseELF)
+version (UseELF)
 void[] initTLSRanges() nothrow @nogc
 {
     debug(PRINTF) printf("initTLSRanges called\n");
@@ -366,16 +362,18 @@ void[] initTLSRanges() nothrow @nogc
     return rng;
 }
 else
-    static assert(0, "TLS range detection not implemented for this OS.");
-
-version (DruntimeAbstractRt)
 {
-    public import external.rt.sections : finiTLSRanges;
+    import rt.sections : initTLSRanges;
 }
-else
+
 void finiTLSRanges(void[] rng) nothrow @nogc
 {
     debug(PRINTF) printf("finiTLSRanges called\n");
+}
+
+version (UseELF) {} else
+{
+    public import rt.sections : finiTLSRanges;
 }
 
 void scanTLSRanges(void[] rng, scope void delegate(void* pbeg, void* pend) nothrow dg) nothrow

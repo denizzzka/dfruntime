@@ -1,4 +1,5 @@
 /**
+ * FreeRTOS rt.sections implementation
  *
  * Copyright: Copyright Denis Feklushkin 2024.
  * License: Distributed under the
@@ -10,12 +11,10 @@
 
 module rt.sections;
 
+version (LDC):
+
+public import rt.sections_ldc;
 import freertos = internal.binding;
-
-version (LDC)
-    public import rt.sections_ldc;
-
-//~ import rt.sections_ldc: SectionGroup;
 
 debug(PRINTF) import core.stdc.stdio : printf;
 
@@ -96,13 +95,8 @@ void ctorsDtorsWarning() nothrow
  */
 }
 
-//~ public import external.rt.sections_arm: initTLSRanges;
-
-//module rt.sections_arm;
-
 version(ARM):
 
-//~ static import freertos;
 import core.stdc.stdlib: aligned_alloc;
 import core.memory: GC;
 
