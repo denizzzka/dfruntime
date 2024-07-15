@@ -317,24 +317,12 @@ class Fiber : FiberBase
     // Initialization
     ///////////////////////////////////////////////////////////////////////////
 
-    version (Windows)
+    version (all)
         // exception handling walks the stack, invoking DbgHelp.dll which
         // needs up to 16k of stack space depending on the version of DbgHelp.dll,
         // the existence of debug symbols and other conditions. Avoid causing
         // stack overflows by defaulting to a larger stack size
         enum defaultStackPages = 8;
-    else version (OSX)
-    {
-        version (X86_64)
-            // libunwind on macOS 11 now requires more stack space than 16k, so
-            // default to a larger stack size. This is only applied to X86 as
-            // the pageSize is still 4k, however on AArch64 it is 16k.
-            enum defaultStackPages = 8;
-        else
-            enum defaultStackPages = 4;
-    }
-    else
-        enum defaultStackPages = 4;
 
     /**
      * Initializes a fiber object which is associated with a static
@@ -408,24 +396,6 @@ class Fiber : FiberBase
         return cast(Fiber) FiberBase.getThis();
     }
 
-
-    ///////////////////////////////////////////////////////////////////////////
-    // Static Initialization
-    ///////////////////////////////////////////////////////////////////////////
-
-
-    version (Posix)
-    {
-        static this()
-        {
-            static if ( __traits( compiles, ucontext_t ) )
-            {
-              int status = getcontext( &sm_utxt );
-              assert( status == 0 );
-            }
-        }
-    }
-
 protected:
     ///////////////////////////////////////////////////////////////////////////
     // Stack Management
@@ -463,7 +433,7 @@ protected:
             // m_curThread is not initialized yet, so we have to wait with storing this StackContext's asan_fakestack handler until switchIn is called.
         }
 
-        version (Windows)
+        version (all)
         {
             // reserve memory for stack
             m_pmem = VirtualAlloc( null,
@@ -509,79 +479,6 @@ protected:
             m_ctxt.tstack = pbase;
             m_size = sz;
         }
-        else
-        {
-            version (Posix) import core.sys.posix.sys.mman; // mmap, MAP_ANON
-            import core.stdc.stdlib : malloc; // available everywhere
-
-            static if ( __traits( compiles, ucontext_t ) )
-            {
-                // Stack size must be at least the minimum allowable by the OS.
-                if (sz < MINSIGSTKSZ)
-                    sz = MINSIGSTKSZ;
-            }
-
-            static if ( __traits( compiles, mmap ) )
-            {
-                // Allocate more for the memory guard
-                sz += guardPageSize;
-
-                int mmap_flags = MAP_PRIVATE | MAP_ANON;
-                version (OpenBSD)
-                    mmap_flags |= MAP_STACK;
-
-                m_pmem = mmap( null,
-                               sz,
-                               PROT_READ | PROT_WRITE,
-                               mmap_flags,
-                               -1,
-                               0 );
-                if ( m_pmem == MAP_FAILED )
-                    m_pmem = null;
-            }
-            else static if ( __traits( compiles, valloc ) )
-            {
-                m_pmem = valloc( sz );
-            }
-            else
-            {
-                import core.stdc.stdlib : malloc;
-
-                m_pmem = malloc( sz );
-            }
-
-            if ( !m_pmem )
-                onOutOfMemoryError();
-
-            static if (isStackGrowingDown)
-            {
-                m_ctxt.bstack = m_pmem + sz;
-                m_ctxt.tstack = m_pmem + sz;
-                void* guard = m_pmem;
-            }
-            else
-            {
-                m_ctxt.bstack = m_pmem;
-                m_ctxt.tstack = m_pmem;
-                void* guard = m_pmem + sz - guardPageSize;
-            }
-            m_size = sz;
-
-            static if ( __traits( compiles, mmap ) )
-            {
-                if (guardPageSize)
-                {
-                    // protect end of stack
-                    if ( mprotect(guard, guardPageSize, PROT_NONE) == -1 )
-                        abort();
-                }
-            }
-            else
-            {
-                // Supported only for mmap allocated memory - results are
-                // undefined if applied to memory not obtained by mmap
-            }
-        }
 
         ThreadBase.add( m_ctxt );
     }
@@ -600,24 +497,11 @@ protected:
         scope(exit) ThreadBase.slock.unlock_nothrow();
         ThreadBase.remove( m_ctxt );
 
-        version (Windows)
+        version (all)
         {
             VirtualFree( m_pmem, 0, MEM_RELEASE );
         }
-        else
-        {
-            version (Posix) import core.sys.posix.sys.mman; // munmap
-            import core.stdc.stdlib : free;
 
-            static if ( __traits( compiles, mmap ) )
-            {
-                munmap( m_pmem, m_size );
-            }
-            else
-            {
-                free( m_pmem );
-            }
-        }
         m_pmem = null;
         m_ctxt = null;
     }
@@ -635,7 +519,7 @@ protected:
     }
     do
     {
-        version (DruntimeAbstractRt) {} else
+        version (all)
         {
             void* pstack = m_ctxt.tstack;
             scope( exit )  m_ctxt.tstack = pstack;
@@ -647,7 +531,7 @@ protected:
                     pstack -= size_t.sizeof;
                     *(cast(size_t*) pstack) = val;
                 }
-                else
+                else //FIXME: Windows stack always growing down
                 {
                     pstack += size_t.sizeof;
                     *(cast(size_t*) pstack) = val;
@@ -670,16 +554,6 @@ protected:
             }
         }
 
-        version (DruntimeAbstractRt)
-        {
-            import external.core.fiber : initStack;
-
-            static if (isStackGrowingDown)
-                initStack!true(m_ctxt);
-            else
-                initStack!false(m_ctxt);
-        }
-        else
         version (AsmX86_Windows)
         {
             static if (isStackGrowingDown) {} else static assert( false );
