@@ -12,6 +12,17 @@ module rt.sections_common;
 
 import rt.deh, rt.minfo;
 
+template isSectionGroup(T)
+{
+    enum isSectionGroup =
+        is(typeof(T.init.modules) == immutable(ModuleInfo*)[]) &&
+        is(typeof(T.init.moduleGroup) == ModuleGroup) &&
+        (!is(typeof(T.init.ehTables)) || is(typeof(T.init.ehTables) == immutable(FuncTable)[])) &&
+        is(typeof(T.init.gcRanges) == void[][]) &&
+        is(typeof({ foreach (ref T; T) {}})) &&
+        is(typeof({ foreach_reverse (ref T; T) {}}));
+}
+
 bool scanDataSegPrecisely() nothrow @nogc
 {
     import rt.config;

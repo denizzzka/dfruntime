@@ -72,18 +72,8 @@ else version (DruntimeAbstractRt)
 else
     static assert(0, "unimplemented");
 
-import rt.deh, rt.minfo;
+import rt.deh, rt.minfo, rt.sections_common;
 
-template isSectionGroup(T)
-{
-    enum isSectionGroup =
-        is(typeof(T.init.modules) == immutable(ModuleInfo*)[]) &&
-        is(typeof(T.init.moduleGroup) == ModuleGroup) &&
-        (!is(typeof(T.init.ehTables)) || is(typeof(T.init.ehTables) == immutable(FuncTable)[])) &&
-        is(typeof(T.init.gcRanges) == void[][]) &&
-        is(typeof({ foreach (ref T; T) {}})) &&
-        is(typeof({ foreach_reverse (ref T; T) {}}));
-}
 static assert(isSectionGroup!(SectionGroup));
 static assert(is(typeof(&initSections) == void function() nothrow @nogc));
 static assert(is(typeof(&finiSections) == void function() nothrow @nogc));
