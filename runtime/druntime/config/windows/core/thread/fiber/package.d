@@ -20,6 +20,8 @@ import core.thread.stack: isStackGrowingDown;
 
 import core.memory : pageSize;
 
+static assert(isStackGrowingDown, "Windows stack should grow downward");
+
 version (LDC)
 {
     import ldc.attributes;
@@ -443,17 +445,11 @@ protected:
             if ( !m_pmem )
                 onOutOfMemoryError();
 
-            static if (isStackGrowingDown)
+            version (all)
             {
                 void* stack = m_pmem + guardPageSize;
                 void* guard = m_pmem;
                 void* pbase = stack + sz;
-            }
-            else
-            {
-                void* stack = m_pmem;
-                void* guard = m_pmem + sz;
-                void* pbase = stack;
             }
 
             // allocate reserved stack segment
@@ -526,14 +522,9 @@ protected:
 
             void push( size_t val ) nothrow
             {
-                static if (isStackGrowingDown)
+                version (all)
                 {
                     pstack -= size_t.sizeof;
-                    *(cast(size_t*) pstack) = val;
-                }
-                else //FIXME: Windows stack always growing down
-                {
-                    pstack += size_t.sizeof;
                     *(cast(size_t*) pstack) = val;
                 }
             }
@@ -544,20 +535,14 @@ protected:
         // be aligned to 16-byte according to SysV AMD64 ABI.
         version (AlignFiberStackTo16Byte)
         {
-            static if (isStackGrowingDown)
+            version (all)
             {
                 pstack = cast(void*)(cast(size_t)(pstack) - (cast(size_t)(pstack) & 0x0F));
-            }
-            else
-            {
-                pstack = cast(void*)(cast(size_t)(pstack) + (cast(size_t)(pstack) & 0x0F));
             }
         }
 
         version (AsmX86_Windows)
         {
-            static if (isStackGrowingDown) {} else static assert( false );
-
             // On Windows Server 2008 and 2008 R2, an exploit mitigation
             // technique known as SEHOP is activated by default. To avoid
             // hijacking of the exception handler chain, the presence of a
@@ -717,358 +702,6 @@ protected:
                 push( cast(size_t) m_ctxt.bstack );                 // GS:[8]
                 push( cast(size_t) m_ctxt.bstack + m_size );        // GS:[16]
             }
-        }
-        else version (AsmX86_Posix)
-        {
-            push( 0x00000000 );                                     // Return address of fiber_entryPoint call
-            push( cast(size_t) &fiber_entryPoint );                 // EIP
-            push( cast(size_t) m_ctxt.bstack );                     // EBP
-            push( 0x00000000 );                                     // EDI
-            push( 0x00000000 );                                     // ESI
-            push( 0x00000000 );                                     // EBX
-            push( 0x00000000 );                                     // EAX
-        }
-        else version (AsmX86_64_Posix)
-        {
-            push( 0x00000000_00000000 );                            // Return address of fiber_entryPoint call
-            push( cast(size_t) &fiber_entryPoint );                 // RIP
-            push( cast(size_t) m_ctxt.bstack );                     // RBP
-            push( 0x00000000_00000000 );                            // RBX
-            push( 0x00000000_00000000 );                            // R12
-            push( 0x00000000_00000000 );                            // R13
-            push( 0x00000000_00000000 );                            // R14
-            push( 0x00000000_00000000 );                            // R15
-        }
-        else version (AsmPPC_Posix)
-        {
-            static if (isStackGrowingDown)
-            {
-                pstack -= int.sizeof * 5;
-            }
-            else
-            {
-                pstack += int.sizeof * 5;
-            }
-
-            push( cast(size_t) &fiber_entryPoint );     // link register
-            push( 0x00000000 );                         // control register
-            push( 0x00000000 );                         // old stack pointer
-
-            // GPR values
-            static if (isStackGrowingDown)
-            {
-                pstack -= int.sizeof * 20;
-            }
-            else
-            {
-                pstack += int.sizeof * 20;
-            }
-
-            assert( (cast(size_t) pstack & 0x0f) == 0 );
-        }
-        else version (AsmPPC64_Posix)
-        {
-            static if (isStackGrowingDown) {}
-            else static assert(0);
-
-            /*
-             * The stack frame uses the standard layout except for floating
-             * point and vector registers.
-             *
-             * ELFv2:
-             * +------------------------+
-             * | TOC Pointer Doubleword | SP+24
-             * +------------------------+
-             * | LR Save Doubleword     | SP+16
-             * +------------------------+
-             * | Reserved               | SP+12
-             * +------------------------+
-             * | CR Save Word           | SP+8
-             * +------------------------+
-             * | Back Chain             | SP+176 <-- Previous function
-             * +------------------------+
-             * | GPR Save Area (14-31)  | SP+32
-             * +------------------------+
-             * | TOC Pointer Doubleword | SP+24
-             * +------------------------+
-             * | LR Save Doubleword     | SP+16
-             * +------------------------+
-             * | Reserved               | SP+12
-             * +------------------------+
-             * | CR Save Word           | SP+8
-             * +------------------------+
-             * | Back Chain             | SP+0   <-- Stored stack pointer
-             * +------------------------+
-             * | VR Save Area (20-31)   | SP-16
-             * +------------------------+
-             * | FPR Save Area (14-31)  | SP-200
-             * +------------------------+
-             *
-             * ELFv1:
-             * +------------------------+
-             * | Parameter Save Area    | SP+48
-             * +------------------------+
-             * | TOC Pointer Doubleword | SP+40
-             * +------------------------+
-             * | Link editor doubleword | SP+32
-             * +------------------------+
-             * | Compiler Doubleword    | SP+24
-             * +------------------------+
-             * | LR Save Doubleword     | SP+16
-             * +------------------------+
-             * | Reserved               | SP+12
-             * +------------------------+
-             * | CR Save Word           | SP+8
-             * +------------------------+
-             * | Back Chain             | SP+256 <-- Previous function
-             * +------------------------+
-             * | GPR Save Area (14-31)  | SP+112
-             * +------------------------+
-             * | Parameter Save Area    | SP+48
-             * +------------------------+
-             * | TOC Pointer Doubleword | SP+40
-             * +------------------------+
-             * | Link editor doubleword | SP+32
-             * +------------------------+
-             * | Compiler Doubleword    | SP+24
-             * +------------------------+
-             * | LR Save Doubleword     | SP+16
-             * +------------------------+
-             * | Reserved               | SP+12
-             * +------------------------+
-             * | CR Save Word           | SP+8
-             * +------------------------+
-             * | Back Chain             | SP+0   <-- Stored stack pointer
-             * +------------------------+
-             * | VR Save Area (20-31)   | SP-16
-             * +------------------------+
-             * | FPR Save Area (14-31)  | SP-200
-             * +------------------------+
-             */
-            assert( (cast(size_t) pstack & 0x0f) == 0 );
-            version (ELFv1)
-            {
-                pstack -= size_t.sizeof * 8;                // Parameter Save Area
-                push( 0x00000000_00000000 );                // TOC Pointer Doubleword
-                push( 0x00000000_00000000 );                // Link editor doubleword
-                push( 0x00000000_00000000 );                // Compiler Doubleword
-                push( cast(size_t) &fiber_entryPoint );     // LR Save Doubleword
-                push( 0x00000000_00000000 );                // CR Save Word
-                push( 0x00000000_00000000 );                // Back Chain
-                size_t backchain = cast(size_t) pstack;     // Save back chain
-                pstack -= size_t.sizeof * 18;               // GPR Save Area
-                pstack -= size_t.sizeof * 8;                // Parameter Save Area
-                push( 0x00000000_00000000 );                // TOC Pointer Doubleword
-                push( 0x00000000_00000000 );                // Link editor doubleword
-                push( 0x00000000_00000000 );                // Compiler Doubleword
-                push( 0x00000000_00000000 );                // LR Save Doubleword
-                push( 0x00000000_00000000 );                // CR Save Word
-                push( backchain );                          // Back Chain
-            }
-            else
-            {
-                push( 0x00000000_00000000 );                // TOC Pointer Doubleword
-                push( cast(size_t) &fiber_entryPoint );     // LR Save Doubleword
-                push( 0x00000000_00000000 );                // CR Save Word
-                push( 0x00000000_00000000 );                // Back Chain
-                size_t backchain = cast(size_t) pstack;     // Save back chain
-                pstack -= size_t.sizeof * 18;               // GPR Save Area
-                push( 0x00000000_00000000 );                // TOC Pointer Doubleword
-                push( 0x00000000_00000000 );                // LR Save Doubleword
-                push( 0x00000000_00000000 );                // CR Save Word
-                push( backchain );                          // Back Chain
-            }
-            assert( (cast(size_t) pstack & 0x0f) == 0 );
-        }
-        else version (AsmPPC_Darwin)
-        {
-            static if (isStackGrowingDown) {}
-            else static assert(false, "PowerPC Darwin only supports decrementing stacks");
-
-            uint wsize = size_t.sizeof;
-
-            // linkage + regs + FPRs + VRs
-            uint space = 8 * wsize + 20 * wsize + 18 * 8 + 12 * 16;
-            (cast(ubyte*)pstack - space)[0 .. space] = 0;
-
-            pstack -= wsize * 6;
-            *cast(size_t*)pstack = cast(size_t) &fiber_entryPoint; // LR
-            pstack -= wsize * 22;
-
-            // On Darwin PPC64 pthread self is in R13 (which is reserved).
-            // At present, it is not safe to migrate fibers between threads, but if that
-            // changes, then updating the value of R13 will also need to be handled.
-            version (PPC64)
-              *cast(size_t*)(pstack + wsize) = cast(size_t) ThreadBase.getThis().m_addr;
-            assert( (cast(size_t) pstack & 0x0f) == 0 );
-        }
-        else version (AsmMIPS_O32_Posix)
-        {
-            static if (isStackGrowingDown) {}
-            else static assert(0);
-
-            /* We keep the FP registers and the return address below
-             * the stack pointer, so they don't get scanned by the
-             * GC. The last frame before swapping the stack pointer is
-             * organized like the following.
-             *
-             *     |-----------|<= frame pointer
-             *     |    $gp    |
-             *     |   $s0-8   |
-             *     |-----------|<= stack pointer
-             *     |    $ra    |
-             *     |  align(8) |
-             *     |  $f20-30  |
-             *     |-----------|
-             *
-             */
-            enum SZ_GP = 10 * size_t.sizeof; // $gp + $s0-8
-            enum SZ_RA = size_t.sizeof;      // $ra
-            version (MIPS_HardFloat)
-            {
-                enum SZ_FP = 6 * 8;          // $f20-30
-                enum ALIGN = -(SZ_FP + SZ_RA) & (8 - 1);
-            }
-            else
-            {
-                enum SZ_FP = 0;
-                enum ALIGN = 0;
-            }
-
-            enum BELOW = SZ_FP + ALIGN + SZ_RA;
-            enum ABOVE = SZ_GP;
-            enum SZ = BELOW + ABOVE;
-
-            (cast(ubyte*)pstack - SZ)[0 .. SZ] = 0;
-            pstack -= ABOVE;
-            *cast(size_t*)(pstack - SZ_RA) = cast(size_t)&fiber_entryPoint;
-        }
-        else version (AsmMIPS_N64_Posix)
-        {
-            static if (isStackGrowingDown) {}
-            else static assert(0);
-
-            /* We keep the FP registers and the return address below
-             * the stack pointer, so they don't get scanned by the
-             * GC. The last frame before swapping the stack pointer is
-             * organized like the following.
-             *
-             *     |-----------|<= frame pointer
-             *     |  $fp/$gp  |
-             *     |   $s0-7   |
-             *     |-----------|<= stack pointer
-             *     |    $ra    |
-             *     |  $f24-31  |
-             *     |-----------|
-             *
-             */
-            enum SZ_GP = 10 * size_t.sizeof; // $fp + $gp + $s0-7
-            enum SZ_RA = size_t.sizeof;      // $ra
-            version (MIPS_HardFloat)
-            {
-                enum SZ_FP = 8 * double.sizeof; // $f24-31
-            }
-            else
-            {
-                enum SZ_FP = 0;
-            }
-
-            enum BELOW = SZ_FP + SZ_RA;
-            enum ABOVE = SZ_GP;
-            enum SZ = BELOW + ABOVE;
-
-            (cast(ubyte*)pstack - SZ)[0 .. SZ] = 0;
-            pstack -= ABOVE;
-            *cast(size_t*)(pstack - SZ_RA) = cast(size_t)&fiber_entryPoint;
-        }
-        else version (AsmLoongArch64_Posix)
-        {
-            // Like others, FP registers and return address ($r1) are kept
-            // below the saved stack top (tstack) to hide from GC scanning.
-            // fiber_switchContext expects newp sp to look like this:
-            //    9: $r22 (frame pointer)
-            //    8: $r23
-            //   ...
-            //    0: $r31 <-- newp tstack
-            //   -1: $r1  (return address)  [&fiber_entryPoint]
-            //   -2: $f24
-            //   ...
-            //   -9: $f31
-
-            static if (isStackGrowingDown) {}
-            else
-                static assert(false, "Only full descending stacks supported on LoongArch64");
-
-            // Only need to set return address ($r1).  Everything else is fine
-            // zero initialized.
-            pstack -= size_t.sizeof * 10;    // skip past space reserved for $r22-$r31
-            push(cast(size_t) &fiber_trampoline); // see threadasm.S for docs
-            pstack += size_t.sizeof;         // adjust sp (newp) above lr
-        }
-        else version (AsmAArch64_Posix)
-        {
-            // Like others, FP registers and return address (lr) are kept
-            // below the saved stack top (tstack) to hide from GC scanning.
-            // fiber_switchContext expects newp sp to look like this:
-            //   19: x19
-            //   ...
-            //    9: x29 (fp)  <-- newp tstack
-            //    8: x30 (lr)  [&fiber_entryPoint]
-            //    7: d8
-            //   ...
-            //    0: d15
-
-            static if (isStackGrowingDown) {}
-            else
-                static assert(false, "Only full descending stacks supported on AArch64");
-
-            // Only need to set return address (lr).  Everything else is fine
-            // zero initialized.
-            pstack -= size_t.sizeof * 11;    // skip past x19-x29
-            push(cast(size_t) &fiber_trampoline); // see threadasm.S for docs
-            pstack += size_t.sizeof;         // adjust sp (newp) above lr
-        }
-        else version (AsmARM_Posix)
-        {
-            /* We keep the FP registers and the return address below
-             * the stack pointer, so they don't get scanned by the
-             * GC. The last frame before swapping the stack pointer is
-             * organized like the following.
-             *
-             *   |  |-----------|<= 'frame starts here'
-             *   |  |     fp    | (the actual frame pointer, r11 isn't
-             *   |  |   r10-r4  |  updated and still points to the previous frame)
-             *   |  |-----------|<= stack pointer
-             *   |  |     lr    |
-             *   |  | 4byte pad |
-             *   |  |   d15-d8  |(if FP supported)
-             *   |  |-----------|
-             *   Y
-             *   stack grows down: The pointer value here is smaller than some lines above
-             */
-            // frame pointer can be zero, r10-r4 also zero initialized
-            static if (isStackGrowingDown)
-                pstack -= int.sizeof * 8;
-            else
-                static assert(false, "Only full descending stacks supported on ARM");
-
-            // link register
-            push( cast(size_t) &fiber_entryPoint );
-            /*
-             * We do not push padding and d15-d8 as those are zero initialized anyway
-             * Position the stack pointer above the lr register
-             */
-            pstack += int.sizeof * 1;
-        }
-        else static if ( __traits( compiles, ucontext_t ) )
-        {
-            getcontext( &m_utxt );
-            m_utxt.uc_stack.ss_sp   = m_pmem;
-            m_utxt.uc_stack.ss_size = m_size;
-            makecontext( &m_utxt, &fiber_entryPoint, 0 );
-            // NOTE: If ucontext is being used then the top of the stack will
-            //       be a pointer to the ucontext_t struct for that fiber.
-            push( cast(size_t) &m_utxt );
         }
         else
             static assert(0, "Not implemented");
