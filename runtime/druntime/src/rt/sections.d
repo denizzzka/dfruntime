@@ -72,16 +72,6 @@ else version (DruntimeAbstractRt)
 else
     static assert(0, "unimplemented");
 
-import rt.deh, rt.minfo, rt.sections_common;
-
-static assert(isSectionGroup!(SectionGroup));
-static assert(is(typeof(&initSections) == void function() nothrow @nogc));
-static assert(is(typeof(&finiSections) == void function() nothrow @nogc));
-static assert(is(typeof(&initTLSRanges) RT == return) &&
-              is(typeof(&initTLSRanges) == RT function() nothrow @nogc) &&
-              is(typeof(&finiTLSRanges) == void function(RT) nothrow @nogc) &&
-              is(typeof(&scanTLSRanges) == void function(RT, scope void delegate(void*, void*) nothrow) nothrow));
-
 version (Windows)
 {
 }

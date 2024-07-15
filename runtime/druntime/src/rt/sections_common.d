@@ -23,6 +23,16 @@ template isSectionGroup(T)
         is(typeof({ foreach_reverse (ref T; T) {}}));
 }
 
+import rt.sections;
+
+static assert(isSectionGroup!(SectionGroup));
+static assert(is(typeof(&initSections) == void function() nothrow @nogc));
+static assert(is(typeof(&finiSections) == void function() nothrow @nogc));
+static assert(is(typeof(&initTLSRanges) RT == return) &&
+              is(typeof(&initTLSRanges) == RT function() nothrow @nogc) &&
+              is(typeof(&finiTLSRanges) == void function(RT) nothrow @nogc) &&
+              is(typeof(&scanTLSRanges) == void function(RT, scope void delegate(void*, void*) nothrow) nothrow));
+
 bool scanDataSegPrecisely() nothrow @nogc
 {
     import rt.config;
