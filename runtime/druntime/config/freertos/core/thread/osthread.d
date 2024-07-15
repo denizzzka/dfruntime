@@ -4,7 +4,7 @@ import core.internal.spinlock: SpinLock;
 import rt.minfo: rt_moduleTlsCtor, rt_moduleTlsDtor;
 import core.stdc.stdlib: malloc, aligned_alloc, realloc, free;
 import core.sync.event: Event;
-import core.time: Duration;
+import core.time: Duration, dur;
 import core.thread.threadbase;
 import core.thread.types;
 static import os = internal.binding /*freertos_binding*/;
