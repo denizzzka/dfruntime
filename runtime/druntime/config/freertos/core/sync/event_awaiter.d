@@ -37,6 +37,8 @@ struct EventAwaiter
     @disable this(this);
     @disable void opAssign(EventAwaiter);
 
+    private enum uint BITS_MASK = 0x01; // using one first bit
+
     void set()
     in(group)
     {
@@ -75,7 +77,7 @@ struct EventAwaiter
     in(!tmout.isNegative)
     in(group)
     {
-        import external.core.time: currTicks;
+        import core.time: currTicks;
 
         /*
         If the task that is waiting for event bits is also being suspended and

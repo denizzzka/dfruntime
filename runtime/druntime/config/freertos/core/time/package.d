@@ -2,6 +2,11 @@ module core.time;
 
 public import core.time.common;
 
+long currTicks() @trusted nothrow @nogc
+{
+    return os.xTaskGetTickCount();
+}
+
 package:
 
 enum ClockType
@@ -25,7 +30,7 @@ static import os = internal.binding; //FIXME: rename module to freertos_binding
 
 package long getCurrMonoTime(MT, alias ClockType clockType)() @trusted nothrow @nogc
 {
-    return os.xTaskGetTickCount();
+    return currTicks();
 }
 
 //TODO: templatize this calculations to avoid wasting CPU time
