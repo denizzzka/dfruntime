@@ -3,6 +3,7 @@ module core.thread.fiber;
 import core.exception : onOutOfMemoryError;
 import core.memory: pageSize;
 import core.stdc.stdlib: malloc, free;
+import core.thread.threadbase: ThreadBase;
 import core.thread.context: StackContext;
 import core.thread.fiber.base: FiberBase;
 import core.thread.stack: isStackGrowingDown;
@@ -78,7 +79,7 @@ class Fiber : FiberBase
     final override void initStack() nothrow @nogc
     in(m_ctxt)
     {
-        initStack(m_ctxt);
+        .initStack(m_ctxt);
     }
 
     final override void freeStack() nothrow @nogc
