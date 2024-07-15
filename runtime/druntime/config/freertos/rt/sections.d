@@ -86,7 +86,7 @@ package void* read_tp_secondary() nothrow @nogc
 
 void ctorsDtorsWarning() nothrow
 {
-    static assert(false, "Deprecation 16211");
+    assert(false, "Deprecation 16211");
 /*
     fprintf(stderr, "Deprecation 16211 warning:\n"
         ~ "A cycle has been detected in your program that was undetected prior to DMD\n"
@@ -113,8 +113,6 @@ void[] initTLSRanges() nothrow @nogc
     {
         assert(__aeabi_read_tp() is null, "TLS already initialized?");
     }
-
-    import external.rt.sections: getTLSParams;
 
     auto p = getTLSParams();
 
@@ -147,7 +145,5 @@ void[] initTLSRanges() nothrow @nogc
 
 extern(C) extern void* __aeabi_read_tp() nothrow @nogc
 {
-    import external.rt.sections: read_tp_secondary;
-
     return read_tp_secondary();
 }
