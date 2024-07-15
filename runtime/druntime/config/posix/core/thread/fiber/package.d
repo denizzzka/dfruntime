@@ -16,6 +16,7 @@ import core.thread.threadbase;
 import core.thread.threadgroup;
 import core.thread.types;
 import core.thread.context;
+import core.thread.stack: isStackGrowingDown;
 
 import core.memory : pageSize;
 
@@ -47,18 +48,6 @@ else
 ///////////////////////////////////////////////////////////////////////////////
 // Fiber Platform Detection
 ///////////////////////////////////////////////////////////////////////////////
-
-version (GNU)
-{
-    import gcc.builtins;
-    version (GNU_StackGrowsDown)
-        version = StackGrowsDown;
-}
-else
-{
-    // this should be true for most architectures
-    version = StackGrowsDown;
-}
 
 version (Windows)
 {
@@ -685,7 +674,7 @@ protected:
             if ( !m_pmem )
                 onOutOfMemoryError();
 
-            version (StackGrowsDown)
+            static if (isStackGrowingDown)
             {
                 void* stack = m_pmem + guardPageSize;
                 void* guard = m_pmem;
@@ -765,7 +754,7 @@ protected:
             if ( !m_pmem )
                 onOutOfMemoryError();
 
-            version (StackGrowsDown)
+            static if (isStackGrowingDown)
             {
                 m_ctxt.bstack = m_pmem + sz;
                 m_ctxt.tstack = m_pmem + sz;
@@ -854,7 +843,7 @@ protected:
 
             void push( size_t val ) nothrow
             {
-                version (StackGrowsDown)
+                static if (isStackGrowingDown)
                 {
                     pstack -= size_t.sizeof;
                     *(cast(size_t*) pstack) = val;
@@ -872,7 +861,7 @@ protected:
         // be aligned to 16-byte according to SysV AMD64 ABI.
         version (AlignFiberStackTo16Byte)
         {
-            version (StackGrowsDown)
+            static if (isStackGrowingDown)
             {
                 pstack = cast(void*)(cast(size_t)(pstack) - (cast(size_t)(pstack) & 0x0F));
             }
@@ -886,7 +875,7 @@ protected:
         {
             import external.core.fiber : initStack;
 
-            version(StackGrowsDown)
+            static if (isStackGrowingDown)
                 initStack!true(m_ctxt);
             else
                 initStack!false(m_ctxt);
@@ -894,7 +883,7 @@ protected:
         else
         version (AsmX86_Windows)
         {
-            version (StackGrowsDown) {} else static assert( false );
+            static if (isStackGrowingDown) {} else static assert( false );
 
             // On Windows Server 2008 and 2008 R2, an exploit mitigation
             // technique known as SEHOP is activated by default. To avoid
@@ -1045,7 +1034,7 @@ protected:
             push( 0x00000000_00000000 );                            // XMM15 (low)
             push( 0x00000000_00000000 );                            // RBX
             push( 0xFFFFFFFF_FFFFFFFF );                            // GS:[0]
-            version (StackGrowsDown)
+            static if (isStackGrowingDown)
             {
                 push( cast(size_t) m_ctxt.bstack );                 // GS:[8]
                 push( cast(size_t) m_ctxt.bstack - m_size );        // GS:[16]
@@ -1079,7 +1068,7 @@ protected:
         }
         else version (AsmPPC_Posix)
         {
-            version (StackGrowsDown)
+            static if (isStackGrowingDown)
             {
                 pstack -= int.sizeof * 5;
             }
@@ -1093,7 +1082,7 @@ protected:
             push( 0x00000000 );                         // old stack pointer
 
             // GPR values
-            version (StackGrowsDown)
+            static if (isStackGrowingDown)
             {
                 pstack -= int.sizeof * 20;
             }
@@ -1106,7 +1095,7 @@ protected:
         }
         else version (AsmPPC64_Posix)
         {
-            version (StackGrowsDown) {}
+            static if (isStackGrowingDown) {}
             else static assert(0);
 
             /*
@@ -1220,7 +1209,7 @@ protected:
         }
         else version (AsmPPC_Darwin)
         {
-            version (StackGrowsDown) {}
+            static if (isStackGrowingDown) {}
             else static assert(false, "PowerPC Darwin only supports decrementing stacks");
 
             uint wsize = size_t.sizeof;
@@ -1242,7 +1231,7 @@ protected:
         }
         else version (AsmMIPS_O32_Posix)
         {
-            version (StackGrowsDown) {}
+            static if (isStackGrowingDown) {}
             else static assert(0);
 
             /* We keep the FP registers and the return address below
@@ -1283,7 +1272,7 @@ protected:
         }
         else version (AsmMIPS_N64_Posix)
         {
-            version (StackGrowsDown) {}
+            static if (isStackGrowingDown) {}
             else static assert(0);
 
             /* We keep the FP registers and the return address below
@@ -1333,7 +1322,7 @@ protected:
             //   ...
             //   -9: $f31
 
-            version (StackGrowsDown) {}
+            static if (isStackGrowingDown) {}
             else
                 static assert(false, "Only full descending stacks supported on LoongArch64");
 
@@ -1356,7 +1345,7 @@ protected:
             //   ...
             //    0: d15
 
-            version (StackGrowsDown) {}
+            static if (isStackGrowingDown) {}
             else
                 static assert(false, "Only full descending stacks supported on AArch64");
 
@@ -1385,7 +1374,7 @@ protected:
              *   stack grows down: The pointer value here is smaller than some lines above
              */
             // frame pointer can be zero, r10-r4 also zero initialized
-            version (StackGrowsDown)
+            static if (isStackGrowingDown)
                 pstack -= int.sizeof * 8;
             else
                 static assert(false, "Only full descending stacks supported on ARM");
