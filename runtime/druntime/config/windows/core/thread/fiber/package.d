@@ -20,15 +20,6 @@ import core.thread.stack: isStackGrowingDown;
 
 import core.memory : pageSize;
 
-version (OSX)
-    version = Darwin;
-else version (iOS)
-    version = Darwin;
-else version (TVOS)
-    version = Darwin;
-else version (WatchOS)
-    version = Darwin;
-
 version (LDC)
 {
     import ldc.attributes;
@@ -49,7 +40,7 @@ else
 // Fiber Platform Detection
 ///////////////////////////////////////////////////////////////////////////////
 
-version (Windows)
+version (all)
 {
     import core.stdc.stdlib : malloc, free;
     import core.sys.windows.winbase;
@@ -60,123 +51,13 @@ package
 {
     version (D_InlineAsm_X86)
     {
-        version (Windows)
-            version = AsmX86_Windows;
-        else version (Posix)
-            version = AsmX86_Posix;
-
+        version = AsmX86_Windows;
         version = AlignFiberStackTo16Byte;
     }
     else version (D_InlineAsm_X86_64)
     {
-        version (Windows)
-        {
-            version = AsmX86_64_Windows;
-            version = AlignFiberStackTo16Byte;
-        }
-        else version (Posix)
-        {
-            version = AsmX86_64_Posix;
-            version = AlignFiberStackTo16Byte;
-        }
-    }
-    else version (PPC)
-    {
-        version (OSX)
-        {
-            version = AsmPPC_Darwin;
-            version = AsmExternal;
-            version = AlignFiberStackTo16Byte;
-        }
-        else version (Posix)
-        {
-            version = AsmPPC_Posix;
-            version = AsmExternal;
-        }
-    }
-    else version (PPC64)
-    {
-        version (OSX)
-        {
-            version = AsmPPC_Darwin;
-            version = AsmExternal;
-            version = AlignFiberStackTo16Byte;
-        }
-        else version (Posix)
-        {
-            version = AsmPPC64_Posix;
-            version = AsmExternal;
-            version = AlignFiberStackTo16Byte;
-        }
-    }
-    else version (MIPS_O32)
-    {
-        version (Posix)
-        {
-            version = AsmMIPS_O32_Posix;
-            version = AsmExternal;
-        }
-    }
-    else version (MIPS_N64)
-    {
-        version (Posix)
-        {
-            version = AsmMIPS_N64_Posix;
-            version = AsmExternal;
-        }
-    }
-    else version (AArch64)
-    {
-        version (Posix)
-        {
-            version = AsmAArch64_Posix;
-            version = AsmExternal;
-            version = AlignFiberStackTo16Byte;
-        }
-    }
-    else version (ARM)
-    {
-        version (Posix)
-        {
-            version = AsmARM_Posix;
-            version = AsmExternal;
-        }
-    }
-    else version (SPARC)
-    {
-        // NOTE: The SPARC ABI specifies only doubleword alignment.
+        version = AsmX86_64_Windows;
         version = AlignFiberStackTo16Byte;
-    }
-    else version (SPARC64)
-    {
-        version = AlignFiberStackTo16Byte;
-    }
-    else version (LoongArch64)
-    {
-        version (Posix)
-        {
-            version = AsmLoongArch64_Posix;
-            version = AsmExternal;
-            version = AlignFiberStackTo16Byte;
-        }
-    }
-
-    version (Posix)
-    {
-        version (AsmX86_Windows)    {} else
-        version (AsmX86_Posix)      {} else
-        version (AsmX86_64_Windows) {} else
-        version (AsmX86_64_Posix)   {} else
-        version (AsmExternal)       {} else
-        {
-            // NOTE: The ucontext implementation requires architecture specific
-            //       data definitions to operate so testing for it must be done
-            //       by checking for the existence of ucontext_t rather than by
-            //       a version identifier.  Please note that this is considered
-            //       an obsolescent feature according to the POSIX spec, so a
-            //       custom solution is still preferred.
-            import core.sys.posix.ucontext;
-        }
     }
 }
 
@@ -191,15 +72,7 @@ package
     import core.stdc.stdlib : abort;
 
   // Look above the definition of 'class Fiber' for some information about the implementation of this routine
-  version (AsmExternal)
-  {
-      extern (C) void fiber_switchContext( void** oldp, void* newp ) nothrow @nogc;
-      version (AArch64)
-          extern (C) void fiber_trampoline() nothrow;
-      version (LoongArch64)
-          extern (C) void fiber_trampoline() nothrow;
-  }
-  else version (LDC_Windows)
+  version (LDC_Windows)
   {
     extern (C) void fiber_switchContext( void** oldp, void* newp ) nothrow @nogc @naked
     {
@@ -431,80 +304,6 @@ package
                 pop RCX;
                 jmp RCX;
             }
-        }
-        else version (AsmX86_Posix)
-        {
-            asm pure nothrow @nogc
-            {
-                naked;
-
-                // save current stack state
-                push EBP;
-                mov  EBP, ESP;
-                push EDI;
-                push ESI;
-                push EBX;
-                push EAX;
-
-                // store oldp again with more accurate address
-                mov EAX, dword ptr 8[EBP];
-                mov [EAX], ESP;
-                // load newp to begin context switch
-                mov ESP, dword ptr 12[EBP];
-
-                // load saved state from new stack
-                pop EAX;
-                pop EBX;
-                pop ESI;
-                pop EDI;
-                pop EBP;
-
-                // 'return' to complete switch
-                pop ECX;
-                jmp ECX;
-            }
-        }
-        else version (AsmX86_64_Posix)
-        {
-            asm pure nothrow @nogc
-            {
-                naked;
-
-                // save current stack state
-                push RBP;
-                mov  RBP, RSP;
-                push RBX;
-                push R12;
-                push R13;
-                push R14;
-                push R15;
-
-                // store oldp
-                mov [RDI], RSP;
-                // load newp to begin context switch
-                mov RSP, RSI;
-
-                // load saved state from new stack
-                pop R15;
-                pop R14;
-                pop R13;
-                pop R12;
-                pop RBX;
-                pop RBP;
-
-                // 'return' to complete switch
-                pop RCX;
-                jmp RCX;
-            }
-        }
-        else static if ( __traits( compiles, ucontext_t ) )
-        {
-            Fiber   cfib = Fiber.getThis();
-            void*   ucur = cfib.m_ucur;
-
-            *oldp = &ucur;
-            swapcontext( **(cast(ucontext_t***) oldp),
-                          *(cast(ucontext_t**)  newp) );
         }
         else
             static assert(0, "Not implemented");
