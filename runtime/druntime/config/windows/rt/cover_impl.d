@@ -19,7 +19,6 @@ private
     import core.stdc.stdio;
     import core.stdc.stdlib;
     import core.internal.utf;
-    import rt.cover_impl;
 
     struct BitArray
     {
@@ -433,17 +432,6 @@ bool readFile(FILE* file, ref char[] buf)
     if (fgetc(file) != EOF)
         assert(0, "EOF not reached");
     return true;
-}
-
-bool readFile(string name, ref char[] buf)
-{
-    import core.internal.utf : toUTF16z;
-    import rt.cover_impl: openFile;
-
-    auto file = openFile(name);
-    if (file is null) return false;
-    scope(exit) fclose(file);
-    return readFile(file, buf);
 }
 
 void splitLines( char[] buf, ref char[][] lines )

@@ -1,6 +1,7 @@
 core\internal\abort.d
 core\internal\print_err.d
 core\memory\impl.d
+core\rt\cover_impl.d
 core\rt\sections.d
 core\stdc\assert_.d
 core\stdc\errno.d
