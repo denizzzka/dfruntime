@@ -17,6 +17,7 @@ core\sync\semaphore\impl.d
 core\sync\event_awaiter.d
 core\sync\mutex.d
 core\time\package.d
+core\thread\fiber\package.d
 core\thread\osthread.d
 core\thread\types.d
 internal\binding.d
