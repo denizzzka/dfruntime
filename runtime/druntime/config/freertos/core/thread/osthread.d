@@ -72,21 +72,6 @@ private struct LLTaskProperties
     LLThreadDg dg;
 }
 
-/**
- * Create a thread not under control of the runtime, i.e. TLS module constructors are
- * not run and the GC does not suspend it during a collection.
- *
- * Params:
- *  dg        = delegate to execute in the created thread.
- *  stacksize = size of the stack of the created thread. The default of 0 will select the
- *              platform-specific default size.
- *  cbDllUnload = Windows only: if running in a dynamically loaded DLL, this delegate will be called
- *              if the DLL is supposed to be unloaded, but the thread is still running.
- *              The thread must be terminated via `joinLowLevelThread` by the callback.
- *
- * Returns: the platform specific thread ID of the new thread. If an error occurs, `ThreadID.init`
- *  is returned.
- */
 ThreadID createLowLevelThread(
     LLThreadDg dg, uint stacksize = 0,
     LLThreadDg cbDllUnload = null, //TODO: propose to remove this arg in upstream?
@@ -181,8 +166,6 @@ void joinLowLevelThread(in ThreadID tid) nothrow @nogc
 
     t.deletionUnlock(); // then thread can be safely deleted
 }
-
-//~ import external.core.types: ll_ThreadData;
 
 private ll_ThreadData* lockAndGetLowLevelThread(in ThreadID tid) nothrow @nogc
 {
