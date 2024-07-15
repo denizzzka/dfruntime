@@ -25,7 +25,7 @@ in(arg)
     scope(exit)
     {
         obj.isRunning = false;
-        obj.taskProperties.joinEvent.set();
+        obj.taskProperties.joinEvent.setIfInitialized();
         os.vTaskDelete(null);
     }
 
