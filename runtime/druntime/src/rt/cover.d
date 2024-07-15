@@ -18,7 +18,6 @@ private
     import core.stdc.config : c_long;
     import core.stdc.stdio;
     import core.stdc.stdlib;
-    import core.internal.utf;
     import rt.cover_impl;
 
     struct BitArray
