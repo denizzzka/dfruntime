@@ -13,12 +13,10 @@ module rt.cover_impl;
 
 package:
 
-import core.sys.windows.basetsd /+: HANDLE+/;
-import core.sys.windows.winbase /+: LOCKFILE_EXCLUSIVE_LOCK, LockFileEx, OVERLAPPED, SetEndOfFile+/;
+import core.sys.windows.basetsd: HANDLE;
+import core.sys.windows.winbase: LOCKFILE_EXCLUSIVE_LOCK, LockFileEx, OVERLAPPED;
 
-//~ import core.stdc.config : c_long;
 import core.stdc.stdio;
-//~ import core.stdc.stdlib: _wopen;
 import core.internal.utf: toUTF16z;
 
 void setFileLen(T)(ref T flst)
