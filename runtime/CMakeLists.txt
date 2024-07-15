@@ -324,7 +324,7 @@ set(OfficialPlatforms
 )
 
 # Tags matrix for them
-set(default_bunch   "default_abort,default_c_assert,default_c_errno,default_libc,default_c_stdint,default_c_stdio_details,default_c_stdlib_details,default_c_wchar,internal")
+set(default_bunch   "default_abort,default_c_assert,default_c_errno,default_libc,default_c_stdint,default_c_stdio_details,default_c_stdlib_details,default_c_wchar,default_exec_sections,internal")
 set(TAGS_windows    "${default_bunch},windows")
 set(posix_bunch     "${default_bunch},posix,posix_threads")
 set(TAGS_osx        ${posix_bunch})
