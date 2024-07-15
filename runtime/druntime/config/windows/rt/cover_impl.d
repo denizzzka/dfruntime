@@ -14,7 +14,7 @@ module rt.cover_impl;
 package:
 
 import core.sys.windows.basetsd: HANDLE;
-import core.sys.windows.winbase: LOCKFILE_EXCLUSIVE_LOCK, LockFileEx, OVERLAPPED;
+import core.sys.windows.winbase: LOCKFILE_EXCLUSIVE_LOCK, LockFileEx, OVERLAPPED, SetEndOfFile;
 
 import core.stdc.stdio;
 import core.internal.utf: toUTF16z;
@@ -35,16 +35,9 @@ string getExt( string name )
         if ( name[i - 1] == '.' )
             return name[i .. $];
         --i;
-        version (Windows)
-        {
-            if ( name[i] == ':' || name[i] == '\\' )
-                break;
-        }
-        else version (Posix)
-        {
-            if ( name[i] == '/' )
-                break;
-        }
+
+        if ( name[i] == ':' || name[i] == '\\' )
+            break;
     }
     return null;
 }
