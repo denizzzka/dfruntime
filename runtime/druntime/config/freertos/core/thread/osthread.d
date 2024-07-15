@@ -1,7 +1,7 @@
 module core.thread.osthread;
 
 import core.internal.spinlock: SpinLock;
-import rt.minfo: rt_moduleTlsCtor;
+import rt.minfo: rt_moduleTlsCtor, rt_moduleTlsDtor;
 import core.sync.event: Event;
 import core.time: Duration;
 import core.thread.threadbase: ThreadBase;
