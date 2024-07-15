@@ -15,6 +15,7 @@ nothrow:
 @nogc:
 
 import internal.binding;
+import core.exception;
 
 private alias MonitorMutex = SemaphoreHandle_t;
 alias Mutex = MonitorMutex;
