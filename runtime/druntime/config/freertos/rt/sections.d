@@ -86,7 +86,7 @@ package void* read_tp_secondary() nothrow @nogc
 
 void ctorsDtorsWarning() nothrow
 {
-    static assert("Deprecation 16211");
+    static assert(false, "Deprecation 16211");
 /*
     fprintf(stderr, "Deprecation 16211 warning:\n"
         ~ "A cycle has been detected in your program that was undetected prior to DMD\n"
