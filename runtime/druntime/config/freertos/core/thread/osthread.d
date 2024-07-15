@@ -512,6 +512,33 @@ class Thread : ThreadBase
         return cast(Thread) ThreadBase.getThis;
     }
 
+    @property static int PRIORITY_MIN() @nogc nothrow pure @safe
+    {
+        assert(false, "unimplemented");
+    }
+
+    @property static const(int) PRIORITY_MAX() @nogc nothrow pure @safe
+    {
+        assert(false, "unimplemented");
+    }
+
+    @property static int PRIORITY_DEFAULT() @nogc nothrow pure @safe
+    {
+        assert(false, "unimplemented");
+    }
+
+    final @property int priority()
+    {
+        assert(false, "unimplemented");
+    }
+
+    final @property void priority(int val)
+    in(val >= PRIORITY_MIN)
+    in(val <= PRIORITY_MAX)
+    {
+        assert(false, "unimplemented");
+    }
+
     import core.atomic: atomicStore, atomicLoad, MemoryOrder;
 
     private void isRunning(bool status) @property nothrow @nogc
