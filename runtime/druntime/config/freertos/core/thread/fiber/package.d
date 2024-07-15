@@ -75,6 +75,7 @@ class Fiber : FiberBase
     }
 
     final override void initStack() nothrow @nogc
+    in(m_ctxt)
     {
         initStack(m_ctxt);
     }
@@ -93,3 +94,5 @@ class Fiber : FiberBase
         m_ctxt = null;
     }
 }
+
+package extern (C) void fiber_switchContext( void** oldp, void* newp ) nothrow @nogc;
