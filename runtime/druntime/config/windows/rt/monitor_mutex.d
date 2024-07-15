@@ -9,13 +9,6 @@
 module rt.monitor_;
 
 import core.atomic, core.stdc.stdlib, core.stdc.string;
-import rt.monitor_mutex: initMutexesFacility, destroyMutexesFacility;
-public import rt.monitor_mutex:
-    Mutex,
-    initMutex,
-    destroyMutex,
-    lockMutex,
-    unlockMutex;
 
 // NOTE: The dtor callback feature is only supported for monitors that are not
 //       supplied by the user.  The assumption is that any object with a user-
@@ -157,14 +150,19 @@ nothrow:
 
 extern (C) void _d_monitor_staticctor() @nogc nothrow
 {
-    initMutexesFacility();
+    version (Posix)
+    {
+        pthread_mutexattr_init(&gattr);
+        pthread_mutexattr_settype(&gattr, PTHREAD_MUTEX_RECURSIVE);
+    }
     initMutex(&gmtx);
 }
 
 extern (C) void _d_monitor_staticdtor() @nogc nothrow
 {
     destroyMutex(&gmtx);
-    destroyMutexesFacility();
+    version (Posix)
+        pthread_mutexattr_destroy(&gattr);
 }
 
 package:
@@ -172,6 +170,60 @@ package:
 // This is what the monitor reference in Object points to
 alias IMonitor = Object.Monitor;
 alias DEvent = void delegate(Object);
+
+version (Windows)
+{
+    version (CRuntime_DigitalMars)
+    {
+        pragma(lib, "snn.lib");
+    }
+    import core.sys.windows.winbase /+: CRITICAL_SECTION, DeleteCriticalSection,
+        EnterCriticalSection, InitializeCriticalSection, LeaveCriticalSection+/;
+
+    alias Mutex = CRITICAL_SECTION;
+
+    alias initMutex = InitializeCriticalSection;
+    alias destroyMutex = DeleteCriticalSection;
+    alias lockMutex = EnterCriticalSection;
+    alias unlockMutex = LeaveCriticalSection;
+}
+else version (Posix)
+{
+    import core.sys.posix.pthread;
+
+@nogc:
+    alias Mutex = pthread_mutex_t;
+    __gshared pthread_mutexattr_t gattr;
+
+    void initMutex(pthread_mutex_t* mtx)
+    {
+        pthread_mutex_init(mtx, &gattr) && assert(0);
+    }
+
+    void destroyMutex(pthread_mutex_t* mtx)
+    {
+        pthread_mutex_destroy(mtx) && assert(0);
+    }
+
+    void lockMutex(pthread_mutex_t* mtx)
+    {
+        pthread_mutex_lock(mtx) && assert(0);
+    }
+
+    void unlockMutex(pthread_mutex_t* mtx)
+    {
+        pthread_mutex_unlock(mtx) && assert(0);
+    }
+}
+else version (DruntimeAbstractRt)
+{
+    public import external.rt.monitor_ :
+        Mutex, initMutex, destroyMutex, lockMutex, unlockMutex;
+}
+else
+{
+    static assert(0, "Unsupported platform");
+}
 
 struct Monitor
 {
