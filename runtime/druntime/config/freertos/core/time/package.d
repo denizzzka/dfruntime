@@ -44,6 +44,11 @@ unittest
 
 enum _ticksPerSec = os.configTICK_RATE_HZ;
 
+long getTicksPerSec()
+{
+    return _ticksPerSec;
+}
+
 void initTicksPerSecond(ref long[] tps) @nogc nothrow
 {
     tps[0] = _ticksPerSec; // ClockType.normal
