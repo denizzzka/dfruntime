@@ -2,9 +2,10 @@ module core.thread.osthread;
 
 import core.internal.spinlock: SpinLock;
 import rt.minfo: rt_moduleTlsCtor, rt_moduleTlsDtor;
+import core.stdc.stdlib: malloc, aligned_alloc, realloc, free;
 import core.sync.event: Event;
 import core.time: Duration;
-import core.thread.threadbase: ThreadBase;
+import core.thread.threadbase;
 import core.thread.types;
 static import os = internal.binding /*freertos_binding*/;
 
@@ -93,7 +94,6 @@ ThreadID createLowLevelThread(
 ) nothrow @nogc
 in(stacksize % os.StackType_t.sizeof == 0)
 {
-    import core.stdc.stdlib: malloc;
     import core.stdc.string: memset;
 
     auto context = cast(LLTaskProperties*) malloc(LLTaskProperties.sizeof);
@@ -227,7 +227,7 @@ extern (C) void thread_init() @nogc
     // Creating main thread
     Thread mainThread = (cast(Thread) _mainThreadStore.ptr).__ctor();
 
-    import external.rt.dmain: mainTaskProperties;
+    import core.internal.entrypoint: mainTaskProperties;
     mainThread.m_main.bstack = mainTaskProperties.stackBottom;
 
     ThreadBase.sm_main = external_attachThread(mainThread);
@@ -583,7 +583,8 @@ class Thread : ThreadBase
 
     static void sleep(Duration val) @nogc nothrow @trusted
     {
-        import external.core.time;
+        import os = internal.binding;
+        import core.time: toTicks;
 
         os.vTaskDelay(val.toTicks);
     }
