@@ -53,25 +53,13 @@ package
 {
     version (D_InlineAsm_X86)
     {
-        version (Windows)
-            version = AsmX86_Windows;
-        else version (Posix)
-            version = AsmX86_Posix;
-
+        version = AsmX86_Posix;
         version = AlignFiberStackTo16Byte;
     }
     else version (D_InlineAsm_X86_64)
     {
-        version (Windows)
-        {
-            version = AsmX86_64_Windows;
-            version = AlignFiberStackTo16Byte;
-        }
-        else version (Posix)
-        {
-            version = AsmX86_64_Posix;
-            version = AlignFiberStackTo16Byte;
-        }
+        version = AsmX86_64_Posix;
+        version = AlignFiberStackTo16Byte;
     }
     else version (PPC)
     {
@@ -156,9 +144,7 @@ package
 
     version (Posix)
     {
-        version (AsmX86_Windows)    {} else
         version (AsmX86_Posix)      {} else
-        version (AsmX86_64_Windows) {} else
         version (AsmX86_64_Posix)   {} else
         version (AsmExternal)       {} else
         {
