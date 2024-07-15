@@ -62,7 +62,7 @@ void initSections() nothrow @nogc
 {
     _sections._moduleGroup = ModuleGroup(getModuleInfos());
 
-    import rt.sections;
+    import rt.sections_common;
     conservative = !scanDataSegPrecisely();
 
     if (conservative)

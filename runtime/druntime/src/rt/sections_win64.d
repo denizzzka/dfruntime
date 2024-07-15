@@ -122,7 +122,7 @@ void initSections(void* handle) nothrow @nogc
     debug(PRINTF) printf("found .data section: [%p,+%llx]\n", dataSection.ptr,
                          cast(ulong)dataSection.length);
 
-    import rt.sections;
+    import rt.sections_common;
     conservative = !scanDataSegPrecisely();
 
     if (conservative)
