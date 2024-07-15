@@ -1,5 +1,6 @@
 module core.thread.fiber;
 
+import core.exception : onOutOfMemoryError;
 import core.memory: pageSize;
 import core.stdc.stdlib: malloc, free;
 import core.thread.context: StackContext;
