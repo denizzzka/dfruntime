@@ -553,7 +553,7 @@ class Thread : ThreadBase
         return null;
     }
 
-    static void sleep(Duration val) @nogc nothrow
+    static void sleep(Duration val) @nogc nothrow @trusted
     {
         import external.core.time;
 
