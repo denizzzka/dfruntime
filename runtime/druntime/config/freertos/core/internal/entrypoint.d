@@ -12,6 +12,8 @@ module core.internal.entrypoint;
 
 static import os = internal.binding;
 
+enum exposeDefaultDRunMain = false;
+
 nothrow:
 @nogc:
 

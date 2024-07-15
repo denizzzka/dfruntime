@@ -255,12 +255,16 @@ extern (C) CArgs rt_cArgs() @nogc
 /// Type of the D main() function (`_Dmain`).
 private alias extern(C) int function(char[][] args) MainFunc;
 
+import core.internal.entrypoint: exposeDefaultDRunMain;
+
+static if (exposeDefaultDRunMain)
+{
+
 /**
  * Sets up the D char[][] command-line args, initializes druntime,
  * runs embedded unittests and then runs the given D main() function,
  * optionally catching and printing any unhandled exceptions.
  */
-version (DruntimeAbstractRt) {} else
 extern (C) int _d_run_main(int argc, char** argv, MainFunc mainFunc)
 {
     // Set up _cArgs and array of D char[] slices, then forward to _d_run_main2
@@ -327,6 +331,8 @@ extern (C) int _d_run_main(int argc, char** argv, MainFunc mainFunc)
     return _d_run_main2(args, totalArgsLength, mainFunc);
 }
 
+}
+
 /**
  * Windows-specific version for wide command-line arguments, e.g.,
  * from a wmain/wWinMain C entry point.
@@ -376,6 +382,7 @@ extern (C) int _d_wrun_main(int argc, wchar** wargv, MainFunc mainFunc)
     return _d_run_main2(args, totalArgsLength, mainFunc);
 }
 
+static if (exposeDefaultDRunMain)
 private extern (C) int _d_run_main2(char[][] args, size_t totalArgsLength, MainFunc mainFunc)
 {
     int result;

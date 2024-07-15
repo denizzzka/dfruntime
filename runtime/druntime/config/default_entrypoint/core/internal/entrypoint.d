@@ -10,6 +10,8 @@
 */
 module core.internal.entrypoint;
 
+enum exposeDefaultDRunMain = true;
+
 /**
 A template containing C main and any call(s) to initialize druntime and
 call D main.  Any module containing a D main function declaration will
