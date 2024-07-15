@@ -49,13 +49,6 @@ else
 // Fiber Platform Detection
 ///////////////////////////////////////////////////////////////////////////////
 
-version (Windows)
-{
-    import core.stdc.stdlib : malloc, free;
-    import core.sys.windows.winbase;
-    import core.sys.windows.winnt;
-}
-
 package
 {
     version (D_InlineAsm_X86)
@@ -199,122 +192,6 @@ package
       version (LoongArch64)
           extern (C) void fiber_trampoline() nothrow;
   }
-  else version (LDC_Windows)
-  {
-    extern (C) void fiber_switchContext( void** oldp, void* newp ) nothrow @nogc @naked
-    {
-        version (X86)
-        {
-            pragma(LDC_never_inline);
-
-            __asm(
-               `// save current stack state
-                push %ebp
-                mov  %esp, %ebp
-                push %edi
-                push %esi
-                push %ebx
-                push %fs:(0)
-                push %fs:(4)
-                push %fs:(8)
-                push %eax
-
-                // store oldp again with more accurate address
-                mov 8(%ebp), %eax
-                mov %esp, (%eax)
-                // load newp to begin context switch
-                mov 12(%ebp), %esp
-
-                // load saved state from new stack
-                pop %eax
-                pop %fs:(8)
-                pop %fs:(4)
-                pop %fs:(0)
-                pop %ebx
-                pop %esi
-                pop %edi
-                pop %ebp
-
-                // 'return' to complete switch
-                pop %ecx
-                jmp *%ecx`,
-                "~{memory},~{ebp},~{esp},~{eax},~{ebx},~{ecx},~{esi},~{edi}"
-            );
-        }
-        else version (X86_64)
-        {
-            // This inline asm assumes a return address has been pushed onto the stack
-            // (and so a stack not aligned to 16 bytes).
-            pragma(LDC_never_inline);
-
-            __asm(
-               `// save current stack state
-                push %rbp
-                mov  %rsp, %rbp
-                push %r12
-                push %r13
-                push %r14
-                push %r15
-                push %rdi
-                push %rsi
-                // 7 registers = 56 bytes; stack is now aligned to 16 bytes
-                sub $$0xA0, %rsp
-                movdqa %xmm6, 0x90(%rsp)
-                movdqa %xmm7, 0x80(%rsp)
-                movdqa %xmm8, 0x70(%rsp)
-                movdqa %xmm9, 0x60(%rsp)
-                movdqa %xmm10, 0x50(%rsp)
-                movdqa %xmm11, 0x40(%rsp)
-                movdqa %xmm12, 0x30(%rsp)
-                movdqa %xmm13, 0x20(%rsp)
-                movdqa %xmm14, 0x10(%rsp)
-                movdqa %xmm15, (%rsp)
-                push %rbx
-                xor  %rax, %rax
-                push %gs:(%rax)
-                push %gs:8(%rax)
-                push %gs:16(%rax)
-
-                // store oldp
-                mov %rsp, (%rcx)
-                // load newp to begin context switch
-                mov %rdx, %rsp
-
-                // load saved state from new stack
-                pop %gs:16(%rax)
-                pop %gs:8(%rax)
-                pop %gs:(%rax)
-                pop %rbx;
-                movdqa (%rsp), %xmm15
-                movdqa 0x10(%rsp), %xmm14
-                movdqa 0x20(%rsp), %xmm13
-                movdqa 0x30(%rsp), %xmm12
-                movdqa 0x40(%rsp), %xmm11
-                movdqa 0x50(%rsp), %xmm10
-                movdqa 0x60(%rsp), %xmm9
-                movdqa 0x70(%rsp), %xmm8
-                movdqa 0x80(%rsp), %xmm7
-                movdqa 0x90(%rsp), %xmm6
-                add $$0xA0, %rsp
-                pop %rsi
-                pop %rdi
-                pop %r15
-                pop %r14
-                pop %r13
-                pop %r12
-                pop %rbp
-
-                // 'return' to complete switch
-                pop %rcx
-                jmp *%rcx`,
-                "~{memory},~{rbp},~{rsp},~{rax},~{rbx},~{rcx},~{rsi},~{rdi},~{r12},~{r13},~{r14},~{r15}," ~
-                "~{xmm6},~{xmm7},~{xmm8},~{xmm9},~{xmm10},~{xmm11},~{xmm12},~{xmm13},~{xmm14},~{xmm15}"
-            );
-        }
-        else
-            static assert(false);
-    }
-  }
   else
     extern (C) void fiber_switchContext( void** oldp, void* newp ) nothrow @nogc
     {
@@ -322,117 +199,7 @@ package
         //       default stack created by Fiber.initStack or the initial
         //       switch into a new context will fail.
 
-        version (AsmX86_Windows)
-        {
-            asm pure nothrow @nogc
-            {
-                naked;
-
-                // save current stack state
-                push EBP;
-                mov  EBP, ESP;
-                push EDI;
-                push ESI;
-                push EBX;
-                push dword ptr FS:[0];
-                push dword ptr FS:[4];
-                push dword ptr FS:[8];
-                push EAX;
-
-                // store oldp again with more accurate address
-                mov EAX, dword ptr 8[EBP];
-                mov [EAX], ESP;
-                // load newp to begin context switch
-                mov ESP, dword ptr 12[EBP];
-
-                // load saved state from new stack
-                pop EAX;
-                pop dword ptr FS:[8];
-                pop dword ptr FS:[4];
-                pop dword ptr FS:[0];
-                pop EBX;
-                pop ESI;
-                pop EDI;
-                pop EBP;
-
-                // 'return' to complete switch
-                pop ECX;
-                jmp ECX;
-            }
-        }
-        else version (AsmX86_64_Windows)
-        {
-            asm pure nothrow @nogc
-            {
-                naked;
-
-                // save current stack state
-                // NOTE: When changing the layout of registers on the stack,
-                //       make sure that the XMM registers are still aligned.
-                //       On function entry, the stack is guaranteed to not
-                //       be aligned to 16 bytes because of the return address
-                //       on the stack.
-                push RBP;
-                mov  RBP, RSP;
-                push R12;
-                push R13;
-                push R14;
-                push R15;
-                push RDI;
-                push RSI;
-                // 7 registers = 56 bytes; stack is now aligned to 16 bytes
-                sub RSP, 160;
-                movdqa [RSP + 144], XMM6;
-                movdqa [RSP + 128], XMM7;
-                movdqa [RSP + 112], XMM8;
-                movdqa [RSP + 96], XMM9;
-                movdqa [RSP + 80], XMM10;
-                movdqa [RSP + 64], XMM11;
-                movdqa [RSP + 48], XMM12;
-                movdqa [RSP + 32], XMM13;
-                movdqa [RSP + 16], XMM14;
-                movdqa [RSP], XMM15;
-                push RBX;
-                xor  RAX,RAX;
-                push qword ptr GS:[RAX];
-                push qword ptr GS:8[RAX];
-                push qword ptr GS:16[RAX];
-
-                // store oldp
-                mov [RCX], RSP;
-                // load newp to begin context switch
-                mov RSP, RDX;
-
-                // load saved state from new stack
-                pop qword ptr GS:16[RAX];
-                pop qword ptr GS:8[RAX];
-                pop qword ptr GS:[RAX];
-                pop RBX;
-                movdqa XMM15, [RSP];
-                movdqa XMM14, [RSP + 16];
-                movdqa XMM13, [RSP + 32];
-                movdqa XMM12, [RSP + 48];
-                movdqa XMM11, [RSP + 64];
-                movdqa XMM10, [RSP + 80];
-                movdqa XMM9, [RSP + 96];
-                movdqa XMM8, [RSP + 112];
-                movdqa XMM7, [RSP + 128];
-                movdqa XMM6, [RSP + 144];
-                add RSP, 160;
-                pop RSI;
-                pop RDI;
-                pop R15;
-                pop R14;
-                pop R13;
-                pop R12;
-                pop RBP;
-
-                // 'return' to complete switch
-                pop RCX;
-                jmp RCX;
-            }
-        }
-        else version (AsmX86_Posix)
+        version (AsmX86_Posix)
         {
             asm pure nothrow @nogc
             {
@@ -518,13 +285,7 @@ class Fiber : FiberBase
     // Initialization
     ///////////////////////////////////////////////////////////////////////////
 
-    version (Windows)
-        // exception handling walks the stack, invoking DbgHelp.dll which
-        // needs up to 16k of stack space depending on the version of DbgHelp.dll,
-        // the existence of debug symbols and other conditions. Avoid causing
-        // stack overflows by defaulting to a larger stack size
-        enum defaultStackPages = 8;
-    else version (OSX)
+    version (OSX)
     {
         version (X86_64)
             // libunwind on macOS 11 now requires more stack space than 16k, so
@@ -615,7 +376,7 @@ class Fiber : FiberBase
     ///////////////////////////////////////////////////////////////////////////
 
 
-    version (Posix)
+    version (all)
     {
         static this()
         {
@@ -664,53 +425,7 @@ protected:
             // m_curThread is not initialized yet, so we have to wait with storing this StackContext's asan_fakestack handler until switchIn is called.
         }
 
-        version (Windows)
-        {
-            // reserve memory for stack
-            m_pmem = VirtualAlloc( null,
-                                   sz + guardPageSize,
-                                   MEM_RESERVE,
-                                   PAGE_NOACCESS );
-            if ( !m_pmem )
-                onOutOfMemoryError();
-
-            static if (isStackGrowingDown)
-            {
-                void* stack = m_pmem + guardPageSize;
-                void* guard = m_pmem;
-                void* pbase = stack + sz;
-            }
-            else
-            {
-                void* stack = m_pmem;
-                void* guard = m_pmem + sz;
-                void* pbase = stack;
-            }
-
-            // allocate reserved stack segment
-            stack = VirtualAlloc( stack,
-                                  sz,
-                                  MEM_COMMIT,
-                                  PAGE_READWRITE );
-            if ( !stack )
-                onOutOfMemoryError();
-
-            if (guardPageSize)
-            {
-                // allocate reserved guard page
-                guard = VirtualAlloc( guard,
-                                      guardPageSize,
-                                      MEM_COMMIT,
-                                      PAGE_READWRITE | PAGE_GUARD );
-                if ( !guard )
-                    onOutOfMemoryError();
-            }
-
-            m_ctxt.bstack = pbase;
-            m_ctxt.tstack = pbase;
-            m_size = sz;
-        }
-        else
+        version (all)
         {
             version (Posix) import core.sys.posix.sys.mman; // mmap, MAP_ANON
             import core.stdc.stdlib : malloc; // available everywhere
@@ -801,13 +516,9 @@ protected:
         scope(exit) ThreadBase.slock.unlock_nothrow();
         ThreadBase.remove( m_ctxt );
 
-        version (Windows)
+        version (all)
         {
-            VirtualFree( m_pmem, 0, MEM_RELEASE );
-        }
-        else
-        {
-            version (Posix) import core.sys.posix.sys.mman; // munmap
+            import core.sys.posix.sys.mman; // munmap
             import core.stdc.stdlib : free;
 
             static if ( __traits( compiles, mmap ) )
@@ -836,7 +547,7 @@ protected:
     }
     do
     {
-        version (DruntimeAbstractRt) {} else
+        version (all)
         {
             void* pstack = m_ctxt.tstack;
             scope( exit )  m_ctxt.tstack = pstack;
@@ -871,181 +582,7 @@ protected:
             }
         }
 
-        version (DruntimeAbstractRt)
-        {
-            import external.core.fiber : initStack;
-
-            static if (isStackGrowingDown)
-                initStack!true(m_ctxt);
-            else
-                initStack!false(m_ctxt);
-        }
-        else
-        version (AsmX86_Windows)
-        {
-            static if (isStackGrowingDown) {} else static assert( false );
-
-            // On Windows Server 2008 and 2008 R2, an exploit mitigation
-            // technique known as SEHOP is activated by default. To avoid
-            // hijacking of the exception handler chain, the presence of a
-            // Windows-internal handler (ntdll.dll!FinalExceptionHandler) at
-            // its end is tested by RaiseException. If it is not present, all
-            // handlers are disregarded, and the program is thus aborted
-            // (see http://blogs.technet.com/b/srd/archive/2009/02/02/
-            // preventing-the-exploitation-of-seh-overwrites-with-sehop.aspx).
-            // For new threads, this handler is installed by Windows immediately
-            // after creation. To make exception handling work in fibers, we
-            // have to insert it for our new stacks manually as well.
-            //
-            // To do this, we first determine the handler by traversing the SEH
-            // chain of the current thread until its end, and then construct a
-            // registration block for the last handler on the newly created
-            // thread. We then continue to push all the initial register values
-            // for the first context switch as for the other implementations.
-            //
-            // Note that this handler is never actually invoked, as we install
-            // our own one on top of it in the fiber entry point function.
-            // Thus, it should not have any effects on OSes not implementing
-            // exception chain verification.
-
-            alias fp_t = void function(); // Actual signature not relevant.
-            static struct EXCEPTION_REGISTRATION
-            {
-                EXCEPTION_REGISTRATION* next; // sehChainEnd if last one.
-                fp_t handler;
-            }
-            enum sehChainEnd = cast(EXCEPTION_REGISTRATION*) 0xFFFFFFFF;
-
-            __gshared static fp_t finalHandler = null;
-            if ( finalHandler is null )
-            {
-                version (LDC)
-                {
-                    static EXCEPTION_REGISTRATION* fs0() nothrow @naked
-                    {
-                        return __asm!(EXCEPTION_REGISTRATION*)("mov %fs:(0), $0", "=r");
-                    }
-                }
-                else
-                {
-                    static EXCEPTION_REGISTRATION* fs0() nothrow
-                    {
-                        asm pure nothrow @nogc
-                        {
-                            naked;
-                            mov EAX, FS:[0];
-                            ret;
-                        }
-                    }
-                }
-
-                auto reg = fs0();
-                while ( reg.next != sehChainEnd ) reg = reg.next;
-
-                // Benign races are okay here, just to avoid re-lookup on every
-                // fiber creation.
-                finalHandler = reg.handler;
-            }
-
-            // When linking with /safeseh (supported by LDC, but not DMD)
-            // the exception chain must not extend to the very top
-            // of the stack, otherwise the exception chain is also considered
-            // invalid. Reserving additional 4 bytes at the top of the stack will
-            // keep the EXCEPTION_REGISTRATION below that limit
-            size_t reserve = EXCEPTION_REGISTRATION.sizeof + 4;
-            pstack -= reserve;
-            *(cast(EXCEPTION_REGISTRATION*)pstack) =
-                EXCEPTION_REGISTRATION( sehChainEnd, finalHandler );
-            auto pChainEnd = pstack;
-
-            push( cast(size_t) &fiber_entryPoint );                 // EIP
-            push( cast(size_t) m_ctxt.bstack - reserve );           // EBP
-            push( 0x00000000 );                                     // EDI
-            push( 0x00000000 );                                     // ESI
-            push( 0x00000000 );                                     // EBX
-            push( cast(size_t) pChainEnd );                         // FS:[0]
-            push( cast(size_t) m_ctxt.bstack );                     // FS:[4]
-            push( cast(size_t) m_ctxt.bstack - m_size );            // FS:[8]
-            push( 0x00000000 );                                     // EAX
-        }
-        else version (AsmX86_64_Windows)
-        {
-            // Using this trampoline instead of the raw fiber_entryPoint
-            // ensures that during context switches, source and destination
-            // stacks have the same alignment. Otherwise, the stack would need
-            // to be shifted by 8 bytes for the first call, as fiber_entryPoint
-            // is an actual function expecting a stack which is not aligned
-            // to 16 bytes.
-            version (LDC)
-            {
-                static void trampoline() @naked
-                {
-                    __asm(
-                       `sub $$32, %rsp
-                        call fiber_entryPoint
-                        xor %rcx, %rcx
-                        jmp *%rcx`,
-                        "~{rsp},~{rcx}"
-                    );
-                }
-            }
-            else
-            {
-                static void trampoline()
-                {
-                    asm pure nothrow @nogc
-                    {
-                        naked;
-                        sub RSP, 32; // Shadow space (Win64 calling convention)
-                        call fiber_entryPoint;
-                        xor RCX, RCX; // This should never be reached, as
-                        jmp RCX;      // fiber_entryPoint must never return.
-                    }
-                }
-            }
-
-            push( cast(size_t) &trampoline );                       // RIP
-            push( 0x00000000_00000000 );                            // RBP
-            push( 0x00000000_00000000 );                            // R12
-            push( 0x00000000_00000000 );                            // R13
-            push( 0x00000000_00000000 );                            // R14
-            push( 0x00000000_00000000 );                            // R15
-            push( 0x00000000_00000000 );                            // RDI
-            push( 0x00000000_00000000 );                            // RSI
-            push( 0x00000000_00000000 );                            // XMM6 (high)
-            push( 0x00000000_00000000 );                            // XMM6 (low)
-            push( 0x00000000_00000000 );                            // XMM7 (high)
-            push( 0x00000000_00000000 );                            // XMM7 (low)
-            push( 0x00000000_00000000 );                            // XMM8 (high)
-            push( 0x00000000_00000000 );                            // XMM8 (low)
-            push( 0x00000000_00000000 );                            // XMM9 (high)
-            push( 0x00000000_00000000 );                            // XMM9 (low)
-            push( 0x00000000_00000000 );                            // XMM10 (high)
-            push( 0x00000000_00000000 );                            // XMM10 (low)
-            push( 0x00000000_00000000 );                            // XMM11 (high)
-            push( 0x00000000_00000000 );                            // XMM11 (low)
-            push( 0x00000000_00000000 );                            // XMM12 (high)
-            push( 0x00000000_00000000 );                            // XMM12 (low)
-            push( 0x00000000_00000000 );                            // XMM13 (high)
-            push( 0x00000000_00000000 );                            // XMM13 (low)
-            push( 0x00000000_00000000 );                            // XMM14 (high)
-            push( 0x00000000_00000000 );                            // XMM14 (low)
-            push( 0x00000000_00000000 );                            // XMM15 (high)
-            push( 0x00000000_00000000 );                            // XMM15 (low)
-            push( 0x00000000_00000000 );                            // RBX
-            push( 0xFFFFFFFF_FFFFFFFF );                            // GS:[0]
-            static if (isStackGrowingDown)
-            {
-                push( cast(size_t) m_ctxt.bstack );                 // GS:[8]
-                push( cast(size_t) m_ctxt.bstack - m_size );        // GS:[16]
-            }
-            else
-            {
-                push( cast(size_t) m_ctxt.bstack );                 // GS:[8]
-                push( cast(size_t) m_ctxt.bstack + m_size );        // GS:[16]
-            }
-        }
-        else version (AsmX86_Posix)
+        version (AsmX86_Posix)
         {
             push( 0x00000000 );                                     // Return address of fiber_entryPoint call
             push( cast(size_t) &fiber_entryPoint );                 // EIP
@@ -1401,69 +938,6 @@ protected:
             static assert(0, "Not implemented");
     }
 }
-
-
-version (AsmX86_64_Windows)
-{
-    // Test Windows x64 calling convention
-    unittest
-    {
-        void testNonvolatileRegister(alias REG)()
-        {
-            auto zeroRegister = new Fiber(() {
-                mixin("asm pure nothrow @nogc { naked; xor "~REG~", "~REG~"; ret; }");
-            });
-            long after;
-
-            mixin("asm pure nothrow @nogc { mov "~REG~", 0xFFFFFFFFFFFFFFFF; }");
-            zeroRegister.call();
-            mixin("asm pure nothrow @nogc { mov after, "~REG~"; }");
-
-            assert(after == -1);
-        }
-
-        void testNonvolatileRegisterSSE(alias REG)()
-        {
-            auto zeroRegister = new Fiber(() {
-                mixin("asm pure nothrow @nogc { naked; xorpd "~REG~", "~REG~"; ret; }");
-            });
-            long[2] before = [0xFFFFFFFF_FFFFFFFF, 0xFFFFFFFF_FFFFFFFF], after;
-
-            mixin("asm pure nothrow @nogc { movdqu "~REG~", before; }");
-            zeroRegister.call();
-            mixin("asm pure nothrow @nogc { movdqu after, "~REG~"; }");
-
-            assert(before == after);
-        }
-
-        testNonvolatileRegister!("R12")();
-        testNonvolatileRegister!("R13")();
-        testNonvolatileRegister!("R14")();
-        testNonvolatileRegister!("R15")();
-      version (LDC)
-      {
-        // FIXME: fails with `-O` (unless in separate object file)
-      }
-      else
-      {
-        testNonvolatileRegister!("RDI")();
-        testNonvolatileRegister!("RSI")();
-        testNonvolatileRegister!("RBX")();
-      }
-
-        testNonvolatileRegisterSSE!("XMM6")();
-        testNonvolatileRegisterSSE!("XMM7")();
-        testNonvolatileRegisterSSE!("XMM8")();
-        testNonvolatileRegisterSSE!("XMM9")();
-        testNonvolatileRegisterSSE!("XMM10")();
-        testNonvolatileRegisterSSE!("XMM11")();
-        testNonvolatileRegisterSSE!("XMM12")();
-        testNonvolatileRegisterSSE!("XMM13")();
-        testNonvolatileRegisterSSE!("XMM14")();
-        testNonvolatileRegisterSSE!("XMM15")();
-    }
-}
-
 
 version (D_InlineAsm_X86_64)
 {
