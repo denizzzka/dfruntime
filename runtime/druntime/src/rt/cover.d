@@ -229,7 +229,7 @@ shared static ~this()
         auto flst = openOrCreateFile(fname);
         if (flst is null)
             continue;
-        lockFile(fileno(flst)); // gets unlocked by fclose
+        lockFile(flst); // gets unlocked by fclose
         scope(exit) fclose(flst);
 
         if (!readFile(appendFN(config.srcpath, c.filename), buf))

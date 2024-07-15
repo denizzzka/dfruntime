@@ -65,8 +65,9 @@ HANDLE handle(int fd)
         return cast(HANDLE)_get_osfhandle(fd);
 }
 
-void lockFile(int fd)
+void lockFile(FILE* flst)
 {
+    auto fd = fileno(flst);
     OVERLAPPED off;
     // exclusively lock first byte
     LockFileEx(handle(fd), LOCKFILE_EXCLUSIVE_LOCK, 0, 1, 0, &off);

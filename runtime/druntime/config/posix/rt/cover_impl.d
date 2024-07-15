@@ -58,8 +58,10 @@ FILE* openOrCreateFile(string name)
     return fdopen(fd, "r+b");
 }
 
-void lockFile(int fd)
+void lockFile(FILE* flst)
 {
+    auto fd = fileno(flst);
+
     version (CRuntime_Bionic)
     {
         import core.sys.bionic.fcntl : LOCK_EX;
