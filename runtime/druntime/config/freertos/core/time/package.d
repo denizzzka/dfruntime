@@ -2,6 +2,8 @@ module core.time;
 
 public import core.time.common;
 
+package:
+
 enum ClockType
 {
     normal = 0,
@@ -27,7 +29,7 @@ package long getCurrMonoTime(MT, alias ClockType clockType)() @trusted nothrow @
 }
 
 //TODO: templatize this calculations to avoid wasting CPU time
-uint toTicks(Duration d) @safe nothrow @nogc pure
+public uint toTicks(Duration d) @safe nothrow @nogc pure
 in(_ticksPerSec >= 1000)
 {
     long r = _ticksPerSec / 1000 * d.total!"msecs";
@@ -42,16 +44,11 @@ unittest
     assert(1.seconds.toTicks == _ticksPerSec);
 }
 
-enum _ticksPerSec = os.configTICK_RATE_HZ;
+private enum _ticksPerSec = os.configTICK_RATE_HZ;
 
 long getTicksPerSec()
 {
     return _ticksPerSec;
-}
-
-void initTicksPerSecond(ref long[] tps) @nogc nothrow
-{
-    tps[0] = _ticksPerSec; // ClockType.normal
 }
 
 // Linked by picolibc
