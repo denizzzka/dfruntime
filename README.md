@@ -1,7 +1,7 @@
 DFRuntime - is a fork of LDC DRuntime
 ===============================
 
-<sup>(In fact, for convenience of maintance, this is a fork of whole [ldc](https://github.com/ldc-developers/ldc))</sup>
+<sup>(In fact, for convenience of maintenance, this is a fork of whole [ldc](https://github.com/ldc-developers/ldc))</sup>
 
 # Rationale
 
