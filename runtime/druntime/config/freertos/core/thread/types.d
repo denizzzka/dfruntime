@@ -1,3 +1,13 @@
+/**
+ * This module provides types and constants used in thread package.
+ *
+ * Copyright: Copyright Denis Feklushkin 2024.
+ * License: Distributed under the
+ *      $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost Software License 1.0).
+ *    (See accompanying file LICENSE)
+ * Authors:   Denis Feklushkin
+ * Source: $(DRUNTIMESRC config/freertos/core/thread/types.d)
+ */
 module core.thread.types;
 
 import internal.binding /*freertos_binding*/ : TaskHandle_t;

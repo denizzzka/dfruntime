@@ -1,3 +1,13 @@
+/**
+ * The fiber module provides lightweight threads aka fibers.
+ *
+ * Copyright: Copyright Denis Feklushkin 2024.
+ * License: Distributed under the
+ *      $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost Software License 1.0).
+ *    (See accompanying file LICENSE)
+ * Authors:   Denis Feklushkin
+ * Source: $(DRUNTIMESRC config/freertos/core/thread/fiber/package.d)
+ */
 module core.thread.fiber;
 
 import core.exception : onOutOfMemoryError;
