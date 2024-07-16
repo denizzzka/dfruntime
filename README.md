@@ -7,7 +7,7 @@ DFRuntime - is a fork of LDC DRuntime
 
 I think that [this way](https://github.com/dlang/dmd/pull/15822#issue-1996484133) of organizing DRuntime code is right way.
 
-And I really want to program for all sorts of MCUs/CPUs/OSes/etc using same my favorite programming language.
+And I want to program for all sorts of MCUs/CPUs/OSes/etc using same my favorite programming language.
 
 # Build for Linux
 
