@@ -1,3 +1,13 @@
+/**
+ * FreeRTOS semaphore module provides a general use semaphore for synchronization.
+ *
+ * Copyright: Copyright Denis Feklushkin 2024.
+ * License: Distributed under the
+ *      $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost Software License 1.0).
+ *    (See accompanying file LICENSE)
+ * Authors:   Denis Feklushkin
+ * Source: $(DRUNTIMESRC config/freertos/core/sync/semaphore/impl.d)
+ */
 module core.sync.semaphore.impl;
 
 static import os = internal.binding;

@@ -1,3 +1,4 @@
+///
 module core.internal.print_err;
 
 //~ import core.sys.posix.unistd: write;

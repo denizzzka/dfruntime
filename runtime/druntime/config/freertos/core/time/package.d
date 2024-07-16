@@ -1,3 +1,13 @@
+/**
+ * FreeRTOS core.time implementation
+ *
+ * Copyright: Copyright Denis Feklushkin 2024.
+ * License: Distributed under the
+ *      $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost Software License 1.0).
+ *    (See accompanying file LICENSE)
+ * Authors:   Denis Feklushkin
+ * Source: $(DRUNTIMESRC config/freertos/core/time/package.d)
+ */
 module core.time;
 
 public import core.time.common;

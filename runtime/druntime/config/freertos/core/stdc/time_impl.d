@@ -1,3 +1,4 @@
+///
 module core.stdc.time_impl;
 
 import core.stdc.config: c_long;
