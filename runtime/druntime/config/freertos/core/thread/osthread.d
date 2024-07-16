@@ -3,7 +3,7 @@ module core.thread.osthread;
 import core.internal.spinlock: SpinLock;
 import rt.minfo: rt_moduleTlsCtor, rt_moduleTlsDtor;
 import core.stdc.stdlib: malloc, aligned_alloc, realloc, free;
-import core.sync.event: Event;
+import core.sync.event_awaiter: EventAwaiter;
 import core.time: Duration, dur;
 import core.thread.threadbase;
 import core.thread.types;
@@ -15,7 +15,7 @@ enum DefaultStackSize = 2048 * os.StackType_t.sizeof;
 private struct TaskProperties
 {
     os.StaticTask_t tcb;
-    Event joinEvent;
+    EventAwaiter joinEvent;
     void* stackBuff;
 }
 
@@ -27,7 +27,7 @@ in(arg)
     scope(exit)
     {
         obj.isRunning = false;
-        obj.taskProperties.joinEvent.setIfInitialized();
+        obj.taskProperties.joinEvent.set();
         os.vTaskDelete(null);
     }
 
@@ -390,7 +390,7 @@ class Thread : ThreadBase
     {
         super(fn, sz);
         initTaskProperties();
-        taskProperties.joinEvent = Event(true, false);
+        taskProperties.joinEvent = EventAwaiter(true, false);
         //printTcbCreated(file, line);
     }
 
@@ -399,7 +399,7 @@ class Thread : ThreadBase
     {
         super(dg, sz);
         initTaskProperties();
-        taskProperties.joinEvent = Event(true, false);
+        taskProperties.joinEvent = EventAwaiter(true, false);
         //printTcbCreated(file, line);
     }
 
