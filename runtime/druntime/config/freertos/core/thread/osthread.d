@@ -333,13 +333,6 @@ void thread_intermediateShutdown() nothrow @nogc
     assert(false, "Not implemented");
 }
 
-public void* getStackTop() nothrow @nogc
-{
-    import ldc.intrinsics;
-    pragma(LDC_never_inline);
-    return llvm_frameaddress(0);
-}
-
 void* getStackBottom() nothrow @nogc
 {
     assert(Thread.getThis().m_main.bstack !is null);

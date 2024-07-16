@@ -51,7 +51,9 @@ template _d_cmain()
     void _d_run_main(void* mtp)
     {
         import core.stdc.stdlib: _Exit;
-        import core.thread: getStackTop;
+        import core.internal.traits: externDFunc;
+
+        alias getStackTop = externDFunc!("core.thread.common.getStackTop", void* function() nothrow @nogc);
 
         // stack wasn't used yet, so assumed what we on top
         (cast(MainTaskProperties*) mtp).stackBottom = getStackTop();
