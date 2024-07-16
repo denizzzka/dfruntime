@@ -1,6 +1,10 @@
 ///freertos_binding
 module internal.binding;
 
+        // FIXME: strange bug with core.stdc.config
+        //~ import core.stdc.config: c_long, c_ulong;
+        alias c_long = int;
+        alias c_ulong = uint;
 
         import core.stdc.config;
         import core.stdc.stdarg: va_list;
