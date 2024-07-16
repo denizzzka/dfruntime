@@ -51,8 +51,56 @@ Thus, you can use this fork as your usual regular DRuntime.
 
 More complex example:
 ```
+> cmake -G Ninja -B build_dir_arm/ -S runtime/ \
+    -D LDC_EXE_FULL=/full/path/to/bin/ldc2 \
+    -D DMDFE_MINOR_VERSION=109 \
+    -D DMDFE_PATCH_VERSION=1 \
+    -D CMAKE_C_COMPILER=clang \
+    -D CMAKE_SYSTEM_PROCESSOR=arm \
+    -D CMAKE_SYSTEM_NAME=EXTERNAL \
+    -D CMAKE_C_FLAGS="-target thumbv7em-unknown-none-eabi -fshort-enums" \
+    -D D_EXTRA_FLAGS="--mtriple=thumbv7em-unknown-none-eabi --fthread-model=local-exec --verrors=0" \
+    -D CMAKE_EXE_LINKER_FLAGS="-target thumbv7em-unknown-none-eabi --no-standard-libraries" \
+    -D BUILD_SHARED_LIBS=OFF \
+    -D C_SYSTEM_LIBS= \
+    -D TARGET_SYSTEM=freertos_arm \
+    -D EXTERNAL_TAGS=freertos,default_abort
 
+> ninja -C build_dir_arm/ -j10 druntime-ldc
+[...]
+[4/4] Linking D static library lib/libdruntime-ldc.a
 ```
+
+That's all!
+
+But there is another important point: in order to use obtained druntime binary you will also need compiled FreeRTOS and Picolibc binaries.
+You will need to link them together with your application.
+
+Also, trying to build the executable file will tell you which specific symbols are required:
+```
+> ninja -C build_dir_arm/ -j10 druntime-test-runner | grep undefined
+ld.lld: error: undefined symbol: __aeabi_uldivmod
+ld.lld: error: undefined symbol: __aeabi_dcmpeq
+ld.lld: error: undefined symbol: realloc
+ld.lld: error: undefined symbol: isspace
+ld.lld: error: undefined symbol: memcmp
+ld.lld: error: undefined symbol: free
+ld.lld: error: undefined symbol: __aeabi_memcpy
+ld.lld: error: undefined symbol: __aeabi_memset4
+ld.lld: error: undefined symbol: _Unwind_Resume
+ld.lld: error: undefined symbol: sprintf
+ld.lld: error: undefined symbol: printf
+ld.lld: error: undefined symbol: putchar
+ld.lld: error: undefined symbol: __aeabi_f2d
+ld.lld: error: undefined symbol: malloc
+ld.lld: error: undefined symbol: _Unwind_VRS_Get
+ld.lld: error: undefined symbol: abort
+ld.lld: error: undefined symbol: _Unwind_VRS_Set
+ld.lld: error: undefined symbol: xTaskGetTickCount
+ld.lld: error: undefined symbol: __aeabi_ldivmod
+ld.lld: error: undefined symbol: __aeabi_l2d
+```
+(Yes, not so much!)
 
 <sup>Original README.md:</sup>
 
