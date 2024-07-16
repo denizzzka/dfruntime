@@ -1,3 +1,13 @@
+/**
+ * The event_awaiter module provides RAII primitive for lightweight signaling of other threads
+ *
+ * Copyright: Copyright Denis Feklushkin 2024.
+ * License: Distributed under the
+ *    $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost Software License 1.0).
+ *    (See accompanying file LICENSE)
+ * Authors: Denis Feklushkin
+ * Source:    $(DRUNTIMESRC config/freertos/core/sync/event_awaiter.d)
+ */
 module core.sync.event_awaiter;
 
 static import os = internal.binding /*freertos_binding*/;
