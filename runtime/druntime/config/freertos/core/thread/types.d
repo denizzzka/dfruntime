@@ -7,6 +7,7 @@ alias ThreadID = TaskHandle_t;
 
 struct ll_ThreadData
 {
+    //TODO: move to EventAwaiter
     import core.sync.event: Event;
     import core.atomic;
 
