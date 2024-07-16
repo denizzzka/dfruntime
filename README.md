@@ -1,3 +1,61 @@
+DRuntime fork - DRuntime fork - DRuntime fork
+===============================
+
+<sup>(In fact, for convenience of maintance, this is a fork of whole [ldc](https://github.com/ldc-developers/ldc))</sup>
+
+# Rationale
+
+I think that [this way](https://github.com/dlang/dmd/pull/15822#issue-1996484133) of organizing code is right way.
+
+And I really want to program for all sorts of MCUs/CPUs/OSes/etc using same my favorite programming language.
+
+# Build for Linux
+
+The first step is to make sure that nothing is broken and everything works under usual Linux.
+For now it is impossible to build whole ldc2 + druntime + Phobos from this repo due to Phobos is unready.
+Thus, we able to build only runtime part:
+
+```
+> cmake -G Ninja -B build_dir/ -S runtime/ \
+    -D LDC_EXE_FULL=/full/path/to/bin/ldc2 \
+    -D DMDFE_MINOR_VERSION=109 \
+    -D DMDFE_PATCH_VERSION=1 \
+    -D 'TARGET_SYSTEM=Linux;UNIX' \
+    -D D_EXTRA_FLAGS=--d-version=CoreUnittest
+
+CMake Deprecation Warning at CMakeLists.txt:1 (cmake_minimum_required):
+  Compatibility with CMake < 3.5 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value or use a ...<max> suffix to tell
+  CMake that the project does not need compatibility with older versions.
+
+
+-- The C compiler identification is Clang 18.1.7
+-- Detecting C compiler ABI info
+[...]
+-- Configuring done (4.8s)
+-- Generating done (0.2s)
+-- Build files have been written to: /some/path/dfruntime/build_dir
+```
+
+Then build using Ninja and run tests:
+```
+> ninja -C build_dir/ -j10 druntime-ldc druntime-test-runner
+> ./build_dir/druntime-test-runner
+```
+
+Thus, you can use this fork as your usual regular DRuntime.
+
+# Build for FreeRTOS + ARM + Picolibc
+
+More complex example:
+```
+
+```
+
+<sup>Original README.md:</sup>
+
 LDC – the LLVM-based D Compiler
 ===============================
 
