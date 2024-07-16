@@ -1,5 +1,10 @@
 cmake_minimum_required(VERSION 3.4.3)
 
+# ldc2 isn't able to consume .obj files for non-Windows targets
+if(NOT "${TARGET_SYSTEM}" MATCHES "Windows")
+    set(CMAKE_USER_MAKE_RULES_OVERRIDE_C "${CMAKE_CURRENT_SOURCE_DIR}/set_o_output_extension.cmake")
+endif()
+
 project(runtime C)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR})
@@ -253,6 +258,8 @@ list(REMOVE_ITEM DRUNTIME_C ${RUNTIME_DIR}/src/rt/dylib_fixes.c)
 # remove unsupported valgrind.c on Windows
 if("${TARGET_SYSTEM}" MATCHES "Windows")
     list(REMOVE_ITEM DRUNTIME_C ${RUNTIME_DIR}/src/etc/valgrind/valgrind.c)
+else()
+    list(REMOVE_ITEM DRUNTIME_C ${RUNTIME_DIR}/src/ldc/msvc.c)
 endif()
 
 # druntime ASM parts
