@@ -217,6 +217,9 @@ extern (C) void thread_init() @nogc
     ThreadBase.sm_main = external_attachThread(mainThread);
 }
 
+private alias MainThreadStore = void[__traits(classInstanceSize, Thread)];
+private  __gshared align(__traits(classInstanceAlignment, Thread)) MainThreadStore _mainThreadStore;
+
 /// Term threads module
 extern (C) void thread_term() @nogc
 {
