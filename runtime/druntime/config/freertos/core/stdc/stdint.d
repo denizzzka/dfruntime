@@ -1,3 +1,4 @@
+///
 module core.stdc.stdint;
 
 alias int8_t   = byte;   ///

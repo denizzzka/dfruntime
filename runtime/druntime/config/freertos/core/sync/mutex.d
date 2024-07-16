@@ -1,3 +1,12 @@
+/**
+ * The mutex module provides a primitive for maintaining mutually exclusive
+ * access.
+ *
+ * Copyright: Copyright Denis Feklushkin 2024.
+ * License:   $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
+ * Authors:   Denis Feklushkin
+ * Source:    $(DRUNTIMESRC config/freertos/core/sync/mutex.d)
+ */
 module core.sync.mutex;
 
 import object;
