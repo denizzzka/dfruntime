@@ -205,7 +205,20 @@ list(REMOVE_ITEM DRUNTIME_D
 )
 
 # DRUNTIME_TARGET_NAME contains official target name which binary is currently produced
-if("${TARGET_SYSTEM}" MATCHES "Windows")
+if(DEFINED EXTERNAL_TAGS)
+    if(NOT DEFINED TARGET_SYSTEM)
+        message(FATAL_ERROR "External target: please define TARGET_SYSTEM")
+    endif()
+
+    set(DRUNTIME_TARGET_NAME ${TARGET_SYSTEM})
+    set(TAGS_${DRUNTIME_TARGET_NAME} ${EXTERNAL_TAGS})
+
+    if(DEFINED EXTERNAL_PATH)
+        set(EXTERNAL_CFG_DIR ${RUNTIME_DIR}/external_config)
+        file(REMOVE_RECURSE ${EXTERNAL_CFG_DIR})
+        file(COPY ${EXTERNAL_PATH}/ DESTINATION ${EXTERNAL_CFG_DIR})
+    endif()
+elseif("${TARGET_SYSTEM}" MATCHES "Windows")
     set(DRUNTIME_TARGET_NAME "windows")
     list(APPEND DRUNTIME_D ${DRUNTIME_D_WINDOWS})
 elseif("${TARGET_SYSTEM}" MATCHES "UNIX")
@@ -233,23 +246,6 @@ elseif("${TARGET_SYSTEM}" MATCHES "UNIX")
         set(DRUNTIME_TARGET_NAME "sunos")
         list(APPEND DRUNTIME_D ${DRUNTIME_D_SOLARIS})
     endif()
-elseif(${TARGET_SYSTEM} STREQUAL "EXTERNAL")
-    #TODO: rework: use TARGET_SYSTEM as name and detect external target by definition of EXTERNAL_TAGS
-    if(NOT DEFINED EXTERNAL_NAME)
-        message(FATAL_ERROR "External target: please define EXTERNAL_NAME variable")
-    endif()
-    if(NOT DEFINED EXTERNAL_TAGS)
-        message(FATAL_ERROR "External target: please define EXTERNAL_TAGS variable")
-    endif()
-    if(NOT DEFINED EXTERNAL_PATH)
-        message(FATAL_ERROR "External target: please define EXTERNAL_PATH variable (absolute path)")
-    endif()
-
-    set(DRUNTIME_TARGET_NAME ${EXTERNAL_NAME})
-    set(TAGS_${EXTERNAL_NAME} ${EXTERNAL_TAGS})
-    set(EXTERNAL_CFG_DIR ${RUNTIME_DIR}/external_config)
-    file(REMOVE_RECURSE ${EXTERNAL_CFG_DIR})
-    file(COPY ${EXTERNAL_PATH}/ DESTINATION ${EXTERNAL_CFG_DIR})
 endif()
 
 # druntime C parts
