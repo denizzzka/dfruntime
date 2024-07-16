@@ -71,6 +71,35 @@ More complex example:
 [4/4] Linking D static library lib/libdruntime-ldc.a
 ```
 
+Make sure that it was actually obtained ARM 32 bit static library:
+```
+> readelf -h build_dir_arm/lib/libdruntime-ldc.a | head -n 25
+
+File: build_dir_arm/lib/libdruntime-ldc.a(atomic.o)
+ELF Header:
+  Magic:   7f 45 4c 46 01 01 01 00 00 00 00 00 00 00 00 00
+  Class:                             ELF32
+  Data:                              2's complement, little endian
+  Version:                           1 (current)
+  OS/ABI:                            UNIX - System V
+  ABI Version:                       0
+  Type:                              REL (Relocatable file)
+  Machine:                           ARM
+  Version:                           0x1
+  Entry point address:               0x0
+  Start of program headers:          0 (bytes into file)
+  Start of section headers:          9680 (bytes into file)
+  Flags:                             0x5000000, Version5 EABI
+  Size of this header:               52 (bytes)
+  Size of program headers:           0 (bytes)
+  Number of program headers:         0
+  Size of section headers:           40 (bytes)
+  Number of section headers:         154
+  Section header string table index: 1
+
+File: build_dir_arm/lib/libdruntime-ldc.a(attribute.o)
+ELF Header:
+```
 That's all!
 
 But there is another important point: in order to use obtained druntime binary you will also need compiled FreeRTOS and Picolibc binaries.
