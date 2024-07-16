@@ -5,13 +5,21 @@ nothrow:
 
 extern(C) extern __gshared int errno;
 
-//TODO: remove?
-extern (C) ref int __error() @system
+extern (C) ref int __error()
 {
     return errno;
 }
 
-ref int fakePureErrno() @nogc nothrow @system
+private auto assumeFakeAttributesRefReturn(T)(T t) @trusted
 {
-    return __error();
+    import core.internal.traits : Parameters, ReturnType;
+    alias RT = ReturnType!T;
+    alias P = Parameters!T;
+    alias type = ref RT function(P) pure @nogc nothrow;
+    return cast(type) t;
+}
+
+ref int fakePureErrno() pure
+{
+    return assumeFakeAttributesRefReturn(&__error)();
 }
