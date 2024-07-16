@@ -11,7 +11,7 @@ And I really want to program for all sorts of MCUs/CPUs/OSes/etc using same my f
 
 # Build for Linux
 
-The first step is to make sure that nothing is broken and everything works under usual Linux.
+First step is to make sure that nothing is broken and everything works under usual Linux.
 For now it is impossible to build whole ldc2 + druntime + Phobos from this repo due to Phobos is unready.
 Thus, we able to build only runtime part:
 
@@ -105,7 +105,7 @@ That's all!
 But there is another important point: in order to use obtained druntime binary you will also need compiled FreeRTOS and Picolibc binaries.
 You will need to link them together with your application.
 
-Also, trying to build the executable file will tell you which specific symbols are required:
+Also, trying to build test runner executable will tell you which specific symbols are required:
 ```
 > ninja -C build_dir_arm/ -j10 druntime-test-runner | grep undefined
 ld.lld: error: undefined symbol: __aeabi_uldivmod
