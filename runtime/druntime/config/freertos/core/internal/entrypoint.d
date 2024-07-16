@@ -46,12 +46,12 @@ template _d_cmain()
 
     int _d_run_main2(char[][] args, object.size_t totalArgsLength, MainFunc mainFunc);
 
-    //~ import external.rt.dmain: MainTaskProperties, mainTaskProperties;
+    import core.internal.entrypoint: MainTaskProperties, mainTaskProperties;
 
     void _d_run_main(void* mtp)
     {
         import core.stdc.stdlib: _Exit;
-        import external.core.thread: getStackTop;
+        import core.thread: getStackTop;
 
         // stack wasn't used yet, so assumed what we on top
         (cast(MainTaskProperties*) mtp).stackBottom = getStackTop();
@@ -70,7 +70,9 @@ template _d_cmain()
     {
         pragma(LDC_profile_instr, false);
 
-        import external.core.thread: DefaultTaskPriority;
+        import core.internal.entrypoint: interruptsVector;
+        import core.thread: DefaultTaskPriority;
+        import internal.binding: xTaskCreate, vTaskStartScheduler, pdTRUE;
 
         auto creation_res = xTaskCreate(
             &_d_run_main,
