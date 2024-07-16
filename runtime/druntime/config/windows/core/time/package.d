@@ -125,7 +125,7 @@ extern(C) void _d_initMonoTime() @nogc nothrow
     }
 }
 
-version (CoreUnittest) deprecated
+version (all) deprecated
 {
     package @property TickDuration currSystemTick() @trusted nothrow @nogc
     {

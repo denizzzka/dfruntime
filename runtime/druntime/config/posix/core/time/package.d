@@ -516,7 +516,7 @@ long machTicksPerSecond() @nogc nothrow
     return scaledDenom / info.numer;
 }
 
-version (CoreUnittest) deprecated
+version (all) deprecated
 {
     package @property TickDuration currSystemTick() @trusted nothrow @nogc
     {
