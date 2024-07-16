@@ -121,5 +121,3 @@ struct EventAwaiter
         return false;
     }
 }
-
-//TODO: implement common unittests for all Event implementations

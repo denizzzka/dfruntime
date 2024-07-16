@@ -7,17 +7,16 @@ alias ThreadID = TaskHandle_t;
 
 struct ll_ThreadData
 {
-    //~ FIXME:
-    //~ import core.event: Event;
+    import core.sync.event: Event;
     import core.atomic;
 
     ThreadID tid;
-    //~ Event joinEvent;
+    Event joinEvent;
     private shared size_t joinEventSubscribersNum;
 
     void initialize() nothrow @nogc
     {
-        //~ joinEvent.initialize(true, false);
+        joinEvent.initialize(true, false);
     }
 
     auto getSubscribersNum()
@@ -27,12 +26,12 @@ struct ll_ThreadData
 
     void deletionLock() @nogc nothrow
     {
-        //~ joinEventSubscribersNum.atomicOp!"+="(1);
+        joinEventSubscribersNum.atomicOp!"+="(1);
     }
 
     void deletionUnlock() @nogc nothrow
     {
-        //~ joinEventSubscribersNum.atomicOp!"-="(1);
+        joinEventSubscribersNum.atomicOp!"-="(1);
     }
 }
 
