@@ -12,6 +12,9 @@
 
 #ifdef __ARM_EABI__
 
+//TODO: rewrite to D to avoid external includes
+//TODO: add RISC-V support
+
 #include <limits.h> // for __GLIBC__
 #include <unwind.h>
 
