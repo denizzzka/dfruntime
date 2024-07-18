@@ -7,6 +7,7 @@
 import std.file;
 import std.exception: enforce;
 import std.path;
+import std.stdio;
 
 int main(in string[] args)
 {
@@ -22,27 +23,19 @@ int main(in string[] args)
 
     enforce(srcCopyFile.isFile, `Tagged imports file '`~srcCopyFile~`' not found`);
     enforce(impDir.isDir, `DRuntime import/ dir '`~impDir~`' not found`);
-    enforce(srcDir.isDir, `Tags config/ dir '`~srcDir~`' not found`);
+    enforce(srcDir.isDir, `Tags dir '`~srcDir~`' not found`);
+
     if(externalConfigDir !is null)
         enforce(externalConfigDir.isDir, `Additional tags dir '`~externalConfigDir~`' not found`);
 
+    if(dstFile.isValidFilename)
+    {
+        writeln(`Tagged sources list file '`~srcCopyFile~`' already generated`);
+        return 0;
+    }
+
     import std.stdio;
     writeln(args);
-
-//~ IMPDIR="$4"
-//~ TAGS="$5"
-//~ SRC_DIR="$6"
-//~ [ -v 7 ] && SRC_DIR_ADDITIONAL="$7"
-
-//~ if [[ ! -d ${SRC_DIR} ]]; then
-    //~ echo "Tags dir '${SRC_DIR}' not found" >&2
-    //~ exit 1
-//~ fi
-
-//~ if [[ -f ${DST_FILE} ]]; then
-    //~ echo "Tagged sources list already generated"
-    //~ exit 0
-//~ fi
 
 //~ TAGS_LIST=($(echo "$TAGS" | tr "," "\n"))
 
