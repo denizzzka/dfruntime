@@ -8,16 +8,6 @@ import std.file;
 import std.exception: enforce;
 import std.path;
 
-private void mustBeFile(T)(ref T path)
-{
-    enforce(path.isFile);
-}
-
-private void mustBeDir(T)(ref T path)
-{
-    enforce(path.isDir);
-}
-
 int main(in string[] args)
 {
     enforce(args.length >= 7 && args.length <= 8, "need 6 or 7 CLI arguments");
@@ -30,11 +20,11 @@ int main(in string[] args)
     immutable srcDir = args[6]; /// path to druntime config/ dir //FIXME: rename var
     immutable externalConfigDir = (args.length > 7) ? args[7] : null; /// path to additional (external) config/ dir //FIXME: rename var
 
-    srcCopyFile.mustBeFile;
-    impDir.mustBeDir;
-    srcDir.mustBeDir;
+    enforce(srcCopyFile.isFile, `Tagged imports file '`~srcCopyFile~`' not found`);
+    enforce(impDir.isDir, `DRuntime import/ dir '`~impDir~`' not found`);
+    enforce(srcDir.isDir, `Tags config/ dir '`~srcDir~`' not found`);
     if(externalConfigDir !is null)
-        externalConfigDir.mustBeDir;
+        enforce(externalConfigDir.isDir, `Additional tags dir '`~externalConfigDir~`' not found`);
 
     import std.stdio;
     writeln(args);
