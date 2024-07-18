@@ -276,7 +276,7 @@ function(produce_tagged_hier TAGS import_dst_dir)
     list(JOIN TAGS "," TAGS_STR)
 
     execute_process(
-        COMMAND "${RUNTIME_DIR}/parse_tagged_hier.sh"
+        COMMAND "${RUNTIME_DIR}/parse_tagged_hier.d"
         ${TAGGED_SRCS_FILE}
         ${TAGGED_COPY_LIST_FILE}
         ${TAGGED_COPY_FILE}
