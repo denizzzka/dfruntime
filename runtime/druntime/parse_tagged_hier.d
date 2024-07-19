@@ -36,12 +36,12 @@ void worker(in string[] args)
     immutable dstCopyFile = args[3].buildNormalizedPath; /// i.e. GEN_COPY file, generated list of imports choised by tags
     immutable impDir = args[4].buildNormalizedPath; /// path to druntime ./import/ dir
     immutable tagsArg = args[5]; /// comma separated list of tags
-    immutable srcDir = args[6]; /// path to druntime config/ dir //FIXME: rename var
-    immutable externalConfigDir = (args.length > 7) ? args[7] : null; /// path to additional (external) config/ dir //FIXME: rename var
+    immutable configDir = args[6]; /// path to druntime config/ dir where is placed tags implementations
+    immutable externalConfigDir = (args.length > 7) ? args[7] : null; /// path to additional (external) config/ dir
 
     enforce(taggedImportsFile.isFile, `Tagged imports file '`~taggedImportsFile~`' not found`);
     enforce(impDir.isDir, `DRuntime import/ dir '`~impDir~`' not found`);
-    enforce(srcDir.isDir, `Tags dir '`~srcDir~`' not found`);
+    enforce(configDir.isDir, `Tags implementations dir '`~configDir~`' not found`);
 
     if(externalConfigDir !is null)
         enforce(externalConfigDir.isDir, `Additional tags dir '`~externalConfigDir~`' not found`);
@@ -50,7 +50,7 @@ void worker(in string[] args)
 
     writeln("Tags will be applied: ", tagsArg);
 
-    immutable allConfigDirs = [srcDir, externalConfigDir];
+    immutable allConfigDirs = [configDir, externalConfigDir];
 
     auto availTagsDirs = allConfigDirs
         .map!(a => a.dirEntries(SpanMode.shallow))
