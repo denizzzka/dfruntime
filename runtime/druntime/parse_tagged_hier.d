@@ -14,6 +14,9 @@ import std.stdio;
 import std.string: splitLines;
 import std.typecons;
 
+//TODO: add removing GEN_SRC file
+//    echo "File '$DST_FILE' to '$DST_FILE.disabled' to avoid considering that tags parsing process was sucessfully done" >&2
+
 int main(in string[] args)
 {
     enforce(args.length >= 7 && args.length <= 8, "need 6 or 7 CLI arguments");
@@ -101,10 +104,13 @@ int main(in string[] args)
     foreach(imp; taggedImportsList)
     {
         auto found = resultSrcsList.find!(a => a.relPath == imp);
+        resultSrcsList.each!writeln;
         enforce(!found.empty, `Required for import file '`~imp~`' is not found in tagged sources`);
 
         importsToCopy.writeln(found.front.fullPath);
     }
+
+    resultSrcsList.map!(a => a.fullPath).join("\n").toFile(dstFile);
 
     writeln("All tags applied");
 
