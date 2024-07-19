@@ -46,8 +46,6 @@ int main(in string[] args)
 
     writeln("Tags will be applied: ", tagsArg);
 
-    //~ writeln("cfg dir: ", srcDir);
-
     immutable allConfigDirs = [srcDir, externalConfigDir];
 
     auto availTagsDirs = allConfigDirs
@@ -62,7 +60,7 @@ int main(in string[] args)
     {
         string basePath;    // ~/a/b/c/confing_dir/tag_1_name
         string tag;         // tag_1_name
-        string relPath;    // core/internal/somemodule.d
+        string relPath;     // core/internal/somemodule.d
 
         string fullPath() const => basePath~"/"~relPath;    // ~/a/b/c/confing_dir/tag_1_name/core/internal/somemodule.d
     }
@@ -85,8 +83,6 @@ int main(in string[] args)
                     .filter!(a => a.isFile)
                     .map!(e => SrcElem(d.path, tag, e.name[d.path.length+1 .. $]))
             ).join;
-
-        //~ writeln(filesToAdd);
 
         foreach(f; filesToAdd)
         {
