@@ -19,6 +19,19 @@ import std.typecons;
 
 int main(in string[] args)
 {
+    try
+        worker(args);
+    catch(Exception e)
+    {
+        stderr.writeln("Error: "~e.msg);
+        return 1;
+    }
+
+    return 0;
+}
+
+void worker(in string[] args)
+{
     enforce(args.length >= 7 && args.length <= 8, "need 6 or 7 CLI arguments");
 
     immutable dstFile = args[1].buildNormalizedPath; /// i.e. GEN_SRCS file
@@ -39,7 +52,7 @@ int main(in string[] args)
     if(dstFile.isValidFilename)
     {
         writeln(`Tagged sources list file '`~srcCopyFile~`' already generated`);
-        return 0;
+        return;
     }
 
     immutable string[] tags = tagsArg.split(",");
@@ -100,7 +113,6 @@ int main(in string[] args)
     foreach(imp; taggedImportsList)
     {
         auto found = resultSrcsList.find!(a => a.relPath == imp);
-        resultSrcsList.each!writeln;
         enforce(!found.empty, `Required for import file '`~imp~`' is not found in tagged sources`);
 
         importsToCopy.writeln(found.front.fullPath);
@@ -109,6 +121,4 @@ int main(in string[] args)
     resultSrcsList.map!(a => a.fullPath).join("\n").toFile(dstFile);
 
     writeln("All tags applied");
-
-    return 0;
 }
