@@ -4,10 +4,15 @@
     name "parse_tagged_hier"
 +/
 
+import std.algorithm;
+import std.array;
+import std.conv: to;
 import std.file;
 import std.exception: enforce;
 import std.path;
 import std.stdio;
+import std.string: splitLines;
+import std.typecons;
 
 int main(in string[] args)
 {
@@ -34,85 +39,74 @@ int main(in string[] args)
         return 0;
     }
 
-    import std.stdio;
-    writeln(args);
+    immutable string[] tags = tagsArg.split(",");
 
-//~ TAGS_LIST=($(echo "$TAGS" | tr "," "\n"))
+    writeln("Tags will be applied: ", tagsArg);
 
-//~ echo -e "\nTags will be applied: $TAGS"
+    //~ writeln("cfg dir: ", srcDir);
 
-//~ APPLIED=""
+    immutable allConfigDirs = [srcDir, externalConfigDir];
 
-//~ WARN_ACCUM=""
+    auto availTagsDirs = allConfigDirs
+        .map!(a => a.dirEntries(SpanMode.shallow))
+        .join
+        .filter!(a => a.isDir)
+        .map!(a => Tuple!(string, "base", string, "path")(a.name.baseName, a.name))
+        .array
+        .sort!((a, b) => a.base < b.base);
 
-//~ function applyTaggedFiles {
-    //~ TAG=$1
-    //~ SRC_TAG_DIR=$2/${TAG}
+    static struct SrcElem
+    {
+        string basePath;    // ~/a/b/c/confing_dir/tag_1_name
+        string tag;         // tag_1_name
+        string relPath;    // core/internal/somemodule.d
 
-    //~ if [[ ! -d ${SRC_TAG_DIR} ]]; then
-        //~ WARN_ACCUM+="Warning: tag '${TAG}' doesn't corresponds to any subdirectory inside of '$2', skip\n"
-    //~ else
-        //~ SRC_FILES_LIST+=($(find ${SRC_TAG_DIR} -type f ))
+        string fullPath() const => basePath~"/"~relPath;    // ~/a/b/c/confing_dir/tag_1_name/core/internal/somemodule.d
+    }
 
-        //~ pushd ${SRC_TAG_DIR} > /dev/null
-        //~ MAYBE_COPY_LIST+=($(find * -type f ))
-        //~ popd > /dev/null
-    //~ fi
-//~ }
+    SrcElem[] resultSrcsList;
 
-//~ for tag in "${TAGS_LIST[@]}"
-//~ do
-    //~ WARN_ACCUM="Warnings:\n"
+    foreach(tag; tags)
+    {
+        auto foundSUbdirs = availTagsDirs.filter!(a => a.base == tag);
 
-    //~ applyTaggedFiles ${tag} ${SRC_DIR}
+        if(foundSUbdirs.empty)
+        {
+            stderr.writeln(`Warning: tag '`, tag, `' doesn't corresponds to any subdirectory inside of '`, allConfigDirs,`', skip`);
+            continue;
+        }
 
-    //~ if [ -v SRC_DIR_ADDITIONAL ]; then
-        //~ applyTaggedFiles ${tag} ${SRC_DIR_ADDITIONAL}
+        // tag matched, files from matching dirs should be added to list recursively
+        auto filesToAdd = foundSUbdirs.map!(
+                d => dirEntries(d.path, SpanMode.depth)
+                    .filter!(a => a.isFile)
+                    .map!(e => SrcElem(d.path, tag, e.name[d.path.length+1 .. $]))
+            ).join;
 
-        //~ if [[ $(echo ${WARN_ACCUM} | grep -c '^') -gt 2 ]]; then
-            //~ echo -ne "${WARN_ACCUM}" >&2
-        //~ fi
-    //~ else
-        //~ if [[ $(echo ${WARN_ACCUM} | grep -c '^') -gt 1 ]]; then
-            //~ echo -ne "${WARN_ACCUM}" >&2
-        //~ fi
-    //~ fi
+        //~ writeln(filesToAdd);
 
-    //~ APPLIED+=" $tag"
+        foreach(f; filesToAdd)
+        {
+            auto found = resultSrcsList.find!((a, b) => a.relPath == b.relPath)(f);
 
-    //~ #echo "Currently applied tags:$APPLIED"
-//~ done
+            enforce(found.empty, `File '`~f.fullPath~`' overrides already defined file '`~found.front.fullPath~`'`);
 
-//~ LINES_TO_COPY=$(grep -v '^$' ${SRC_COPY_FILE} | sort | uniq | wc -l)
-//~ COPIED=0
+            resultSrcsList ~= f;
+        }
+    }
 
-//~ mkdir -p $(dirname ${DST_FILE})
-//~ mkdir -p $(dirname ${DST_COPY_FILE})
-//~ echo -ne > ${DST_FILE}
-//~ echo -ne > ${DST_COPY_FILE}
+    auto taggedImportsList = srcCopyFile.readText.replace(`\`, `/`).splitLines.sort.uniq.array;
+    auto importsToCopy = File(dstCopyFile, "w");
 
-//~ for i in "${!SRC_FILES_LIST[@]}"
-//~ do
-    //~ echo ${SRC_FILES_LIST[$i]} >> ${DST_FILE}
+    foreach(imp; taggedImportsList)
+    {
+        auto found = resultSrcsList.find!(a => a.relPath == imp);
+        enforce(!found.empty, `Required for import file '`~imp~`' is not found in tagged sources`);
 
-    //~ maybe_copy=$(echo ${MAYBE_COPY_LIST[$i]} | tr '/' '\\')
+        importsToCopy.writeln(found.front.fullPath);
+    }
 
-    //~ # Adds copy entry if file mentioned in the list
-    //~ grep -F "$maybe_copy" ${SRC_COPY_FILE} > /dev/null && {
-        //~ echo ${IMPDIR}'/'${SRC_FILES_LIST[$i]} >> ${DST_COPY_FILE}
-        //~ COPIED=$((COPIED+1))
-    //~ }
-//~ done
-
-//~ if [ $COPIED -ne $LINES_TO_COPY ]; then
-    //~ echo "File '$SRC_COPY_FILE' contains $LINES_TO_COPY meaningful line(s), but to '$DST_COPY_FILE' added $COPIED line(s)" >&2
-
-    //~ mv ${DST_FILE} "$DST_FILE.disabled"
-    //~ echo "File '$DST_FILE' to '$DST_FILE.disabled' to avoid considering that tags parsing process was sucessfully done" >&2
-    //~ exit 1
-//~ fi
-
-//~ echo "All tags applied"
+    writeln("All tags applied");
 
     return 0;
 }
