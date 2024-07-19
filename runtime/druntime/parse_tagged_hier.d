@@ -32,14 +32,14 @@ void worker(in string[] args)
     enforce(args.length >= 7 && args.length <= 8, "need 6 or 7 CLI arguments");
 
     immutable dstFile = args[1].buildNormalizedPath; /// i.e. GEN_SRCS file
-    immutable srcCopyFile = args[2].buildNormalizedPath; /// i.e. mak/TAGGED_COPY //FIXME: rename var
+    immutable taggedImportsFile = args[2].buildNormalizedPath; /// i.e. mak/TAGGED_COPY
     immutable dstCopyFile = args[3].buildNormalizedPath; /// i.e. GEN_COPY file, generated list of imports choised by tags
     immutable impDir = args[4].buildNormalizedPath; /// path to druntime ./import/ dir
     immutable tagsArg = args[5]; /// comma separated list of tags
     immutable srcDir = args[6]; /// path to druntime config/ dir //FIXME: rename var
     immutable externalConfigDir = (args.length > 7) ? args[7] : null; /// path to additional (external) config/ dir //FIXME: rename var
 
-    enforce(srcCopyFile.isFile, `Tagged imports file '`~srcCopyFile~`' not found`);
+    enforce(taggedImportsFile.isFile, `Tagged imports file '`~taggedImportsFile~`' not found`);
     enforce(impDir.isDir, `DRuntime import/ dir '`~impDir~`' not found`);
     enforce(srcDir.isDir, `Tags dir '`~srcDir~`' not found`);
 
@@ -98,7 +98,7 @@ void worker(in string[] args)
         }
     }
 
-    auto taggedImportsList = srcCopyFile.readText.replace(`\`, `/`).splitLines.sort.uniq.array;
+    auto taggedImportsList = taggedImportsFile.readText.replace(`\`, `/`).splitLines.sort.uniq.array;
     auto importsToCopy = File(dstCopyFile, "w");
 
     foreach(imp; taggedImportsList)
