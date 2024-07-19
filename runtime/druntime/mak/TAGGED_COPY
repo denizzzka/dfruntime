@@ -2,6 +2,9 @@ core\internal\abort.d
 core\internal\entrypoint.d
 core\internal\print_err.d
 core\memory\impl.d
+rt\cover_impl.d
+rt\monitor_mutex.d
+rt\sections.d
 core\stdc\assert_.d
 core\stdc\errno.d
 core\stdc\fenv.d
