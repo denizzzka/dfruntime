@@ -14,9 +14,6 @@ import std.stdio;
 import std.string: splitLines;
 import std.typecons;
 
-//TODO: add removing GEN_SRC file
-//    echo "File '$DST_FILE' to '$DST_FILE.disabled' to avoid considering that tags parsing process was sucessfully done" >&2
-
 int main(in string[] args)
 {
     try
@@ -48,12 +45,6 @@ void worker(in string[] args)
 
     if(externalConfigDir !is null)
         enforce(externalConfigDir.isDir, `Additional tags dir '`~externalConfigDir~`' not found`);
-
-    if(dstFile.isValidFilename)
-    {
-        writeln(`Tagged sources list file '`~srcCopyFile~`' already generated`);
-        return;
-    }
 
     immutable string[] tags = tagsArg.split(",");
 
