@@ -65,7 +65,10 @@ void worker(in string[] args)
         string tag;         // tag_1_name
         string relPath;     // core/internal/somemodule.d
 
-        string fullPath() const => basePath~"/"~relPath;    // ~/a/b/c/confing_dir/tag_1_name/core/internal/somemodule.d
+        string fullPath() const
+        {
+            return basePath~"/"~relPath; // ~/a/b/c/confing_dir/tag_1_name/core/internal/somemodule.d
+        }
     }
 
     SrcElem[] resultSrcsList;
