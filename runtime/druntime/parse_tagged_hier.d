@@ -40,7 +40,6 @@ void worker(in string[] args)
     immutable externalConfigDir = (args.length > 7) ? args[7] : null; /// path to additional (external) config/ dir
 
     enforce(taggedImportsFile.isFile, `Tagged imports file '`~taggedImportsFile~`' not found`);
-    enforce(impDir.isDir, `DRuntime import/ dir '`~impDir~`' not found`);
     enforce(configDir.isDir, `Tags implementations dir '`~configDir~`' not found`);
 
     if(externalConfigDir !is null)
