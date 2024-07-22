@@ -696,7 +696,7 @@ macro(compile_phobos2 d_flags lib_suffix path_suffix emit_bc all_at_once single_
     endif()
     dc("${PHOBOS2_D}"
        "${PHOBOS2_DIR}"
-       "-conf=;${d_flags};${PHOBOS2_EXTRA_FLAGS};-I${RUNTIME_DIR}/src;-I${PHOBOS2_DIR}"
+       "${d_flags};${PHOBOS2_EXTRA_FLAGS};-I${RUNTIME_DIR}/src;-I${PHOBOS2_DIR}"
        "${PROJECT_BINARY_DIR}/objects${target_suffix}"
        "${emit_bc}"
        "${all_at_once}"

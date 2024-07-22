@@ -1,13 +1,13 @@
 // Imports for officially supplied druntime binaries:
 
-".+-windows-.+":    { post-switches = [ "@CONF_IMPORTS@", "@CONF_IMPORTS@/platforms/windows" ]; };
-".+-osx-.+":        { post-switches = [ "@CONF_IMPORTS@", "@CONF_IMPORTS@/platforms/osx" ]; };
-".+-dragonfly-.+":  { post-switches = [ "@CONF_IMPORTS@", "@CONF_IMPORTS@/platforms/dragonfly" ]; };
-".+-freebsd-.+":    { post-switches = [ "@CONF_IMPORTS@", "@CONF_IMPORTS@/platforms/freebsd" ]; };
-".+-linux-.+":      { post-switches = [ "@CONF_IMPORTS@", "@CONF_IMPORTS@/platforms/linux" ]; };
-".+-netbsd-.+":     { post-switches = [ "@CONF_IMPORTS@", "@CONF_IMPORTS@/platforms/netbsd" ]; };
-".+-openbsd-.+":    { post-switches = [ "@CONF_IMPORTS@", "@CONF_IMPORTS@/platforms/openbsd" ]; };
-".+-sunos-.+":      { post-switches = [ "@CONF_IMPORTS@", "@CONF_IMPORTS@/platforms/sunos" ]; };
+".+-windows-.+":    { post-switches = [ "@CONF_IMPORTS@", "-I@CMAKE_BINARY_DIR@/runtime/import/tagged_imports/windows" ]; };
+".+-osx-.+":        { post-switches = [ "@CONF_IMPORTS@", "-I@CMAKE_BINARY_DIR@/runtime/import/tagged_imports/osx" ]; };
+".+-dragonfly-.+":  { post-switches = [ "@CONF_IMPORTS@", "-I@CMAKE_BINARY_DIR@/runtime/import/tagged_imports/dragonfly" ]; };
+".+-freebsd-.+":    { post-switches = [ "@CONF_IMPORTS@", "-I@CMAKE_BINARY_DIR@/runtime/import/tagged_imports/freebsd" ]; };
+".+-linux-.+":      { post-switches = [ "@CONF_IMPORTS@", "-I@CMAKE_BINARY_DIR@/runtime/import/tagged_imports/linux" ]; };
+".+-netbsd-.+":     { post-switches = [ "@CONF_IMPORTS@", "-I@CMAKE_BINARY_DIR@/runtime/import/tagged_imports/netbsd" ]; };
+".+-openbsd-.+":    { post-switches = [ "@CONF_IMPORTS@", "-I@CMAKE_BINARY_DIR@/runtime/import/tagged_imports/openbsd" ]; };
+".+-sunos-.+":      { post-switches = [ "@CONF_IMPORTS@", "-I@CMAKE_BINARY_DIR@/runtime/import/tagged_imports/sunos" ]; };
 
 "^wasm(32|64)-":
 {
