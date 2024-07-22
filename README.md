@@ -12,9 +12,13 @@ And I want to program for all sorts of MCUs/CPUs/OSes/etc using same my favorite
 # Build for Linux
 
 First step is to make sure that nothing is broken and everything works under usual Linux.
-For now it is impossible to build whole ldc2 + druntime + Phobos from this repo due to Phobos is unready.
-Thus, we able to build only runtime part:
+Build whole ldc2:
+```
+> cmake -G Ninja -B build_all_dir
+> ninja -C all_build/ all
+```
 
+Or also we able to build just only D runtime:
 ```
 > cmake -G Ninja -B build_dir/ -S runtime/ \
     -D LDC_EXE_FULL=/full/path/to/bin/ldc2 \
