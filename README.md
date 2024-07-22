@@ -63,7 +63,7 @@ More complex example:
     -D CMAKE_SYSTEM_PROCESSOR=arm \
     -D CMAKE_SYSTEM_NAME=EXTERNAL \
     -D CMAKE_C_FLAGS="-target thumbv7em-unknown-none-eabi -fshort-enums" \
-    -D D_EXTRA_FLAGS="--mtriple=thumbv7em-unknown-none-eabi --fthread-model=local-exec --verrors=0" \
+    -D D_EXTRA_FLAGS="--mtriple=thumbv7em-unknown-none-eabi;--fthread-model=local-exec;--verrors=0" \
     -D CMAKE_EXE_LINKER_FLAGS="-target thumbv7em-unknown-none-eabi --no-standard-libraries" \
     -D BUILD_SHARED_LIBS=OFF \
     -D C_SYSTEM_LIBS= \
