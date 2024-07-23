@@ -73,6 +73,11 @@ in(arg)
         append( t );
 }
 
+ThreadID getpid() nothrow @nogc
+{
+    return os.xTaskGetCurrentTaskHandle();
+}
+
 struct LowLevelThreadSystemParams
 {
     const(char*) name = "D low-level";
@@ -146,7 +151,7 @@ private extern(C) void lowlevelThread_entryPoint(void* ctx) nothrow
 
     lltp.dg();
 
-    ThreadID tid = os.xTaskGetCurrentTaskHandle();
+    ThreadID tid = getpid();
 
     lowlevelLock.lock_nothrow();
 
