@@ -21,6 +21,12 @@ class Mutex : Object.Monitor
 
     private SemaphoreHandle_t mtx = void;
 
+    this(Object obj) @safe nothrow @nogc
+    {
+        this();
+        obj.__monitor = this;
+    }
+
     this() @nogc nothrow @trusted
     {
         mtx = _xSemaphoreCreateRecursiveMutex();
