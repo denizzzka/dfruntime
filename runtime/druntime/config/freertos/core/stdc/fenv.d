@@ -21,11 +21,20 @@ version (ARM)
     enum FE_DIVBYZERO = 0x0002;
     enum FE_INVALID =   0x0001;
 
-    // if VFP is supported:
-    enum FE_TONEAREST =     0x00000000;
-    enum FE_DOWNWARD =      0x00800000;
-    enum FE_UPWARD =        0x00400000;
-    enum FE_TOWARDZERO =    0x00c00000;
+    version (D_HardFloat)
+    {
+        enum FE_TONEAREST =     0x00000000;
+        enum FE_DOWNWARD =      0x00800000;
+        enum FE_UPWARD =        0x00400000;
+        enum FE_TOWARDZERO =    0x00c00000;
+    }
+    else
+    {
+        enum FE_TONEAREST =     0x0000;
+        enum FE_DOWNWARD =      0x0001;
+        enum FE_UPWARD =        0x0002;
+        enum FE_TOWARDZERO =    0x0003;
+    }
 }
 
 enum FE_ALL_EXCEPT = FE_INEXACT
