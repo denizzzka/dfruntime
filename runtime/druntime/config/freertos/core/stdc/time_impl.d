@@ -35,3 +35,5 @@ extern(C) int gettimeofday(timeval* tv, void*) // timezone_t* is normally void*
 
     assert(false, "not implemented");
 }
+
+extern(C) void tzset();
