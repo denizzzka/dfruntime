@@ -17,8 +17,6 @@ long currTicks() @trusted nothrow @nogc
     return os.xTaskGetTickCount();
 }
 
-package:
-
 enum ClockType
 {
     normal = 0,
@@ -26,6 +24,8 @@ enum ClockType
     //~ precise = 3,
     second = 6, //TODO: used only for druntime core unittest, do something with this
 }
+
+package:
 
 import core.time;
 
