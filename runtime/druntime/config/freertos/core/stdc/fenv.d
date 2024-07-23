@@ -27,3 +27,9 @@ version (ARM)
     enum FE_UPWARD =        0x00400000;
     enum FE_TOWARDZERO =    0x00c00000;
 }
+
+enum FE_ALL_EXCEPT = FE_INEXACT
+                    | FE_UNDERFLOW
+                    | FE_OVERFLOW
+                    | FE_DIVBYZERO
+                    | FE_INVALID;
