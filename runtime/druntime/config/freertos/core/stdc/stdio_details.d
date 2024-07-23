@@ -44,13 +44,17 @@ enum
     L_tmpnam     = 20
 }
 
+extern(C):
+
+import core.stdc.stdarg: va_list;
+
 ///
 pragma(printf)
-extern(C) int snprintf(scope char* s, size_t n, scope const char* format, ...);
+int snprintf(scope char* s, size_t n, scope const char* format, ...);
 
-//~ ///
-//~ pragma(printf)
-//~ extern(C) int sprintf(scope char* s, scope const char* format, scope const ...);
+///
+pragma(printf)
+int vsnprintf(scope char* s, size_t n, scope const char* format, va_list arg);
 
-extern(C) void flockfile(FILE *filehandle);
-extern(C) void funlockfile(FILE *filehandle);
+void flockfile(FILE *filehandle);
+void funlockfile(FILE *filehandle);
