@@ -1,7 +1,10 @@
 ///
 module core.stdc.time_impl;
 
-import core.stdc.config: c_long;
+//~ import core.stdc.config: c_long; //FIXME: https://issues.dlang.org/show_bug.cgi?id=24666
+version (D_LP64) {} else
+alias c_long = int;
+
 alias time_t = c_long;
 
 struct tm
