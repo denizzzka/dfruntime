@@ -51,3 +51,6 @@ extern(C) int snprintf(scope char* s, size_t n, scope const char* format, ...);
 //~ ///
 //~ pragma(printf)
 //~ extern(C) int sprintf(scope char* s, scope const char* format, scope const ...);
+
+extern(C) void flockfile(FILE *filehandle);
+extern(C) void funlockfile(FILE *filehandle);
