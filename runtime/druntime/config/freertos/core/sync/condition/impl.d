@@ -18,6 +18,11 @@ class Condition
         assert(false, "Not implemented");
     }
 
+    final @property Mutex mutex_nothrow() pure nothrow @safe @nogc
+    {
+        assert(false, "Not implemented");
+    }
+
     void wait() nothrow @nogc
     {
         assert(false, "Not implemented");
