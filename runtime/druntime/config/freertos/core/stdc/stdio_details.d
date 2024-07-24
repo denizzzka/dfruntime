@@ -58,3 +58,19 @@ int vsnprintf(scope char* s, size_t n, scope const char* format, va_list arg);
 
 void flockfile(FILE *filehandle);
 void funlockfile(FILE *filehandle);
+
+@safe:
+
+FILE* fdopen(int, const scope char*);
+pure int feof(FILE* stream);
+pure int ferror(FILE* stream);
+pure void clearerr(FILE*);
+int fsync(int);
+int fseeko(FILE*, off_t, int);
+
+import internal.binding: __off_t;
+alias off_t = __off_t;
+
+off_t ftello(FILE*);
+void rewind(FILE* stream);
+int fileno(FILE *);
