@@ -104,6 +104,43 @@ ELF Header:
 File: build_dir_arm/lib/libdruntime-ldc.a(attribute.o)
 ELF Header:
 ```
+
+# Build Phobos
+
+Now we have everything almost ready for build Phobos!
+The only thing we need to do is set the "tagged imports" dir to the compiler and set some necessary D version for Phobos.
+
+Create file `ldc2_freertos.conf` with your own correct paths:
+```
+default:
+{
+    // default switches injected before all explicit command-line switches
+    switches = [
+        "-defaultlib=phobos2-ldc,druntime-ldc",
+    ];
+    // default switches appended after all explicit command-line switches
+    post-switches = [
+        "-I./dfruntime/runtime/druntime/src", "-I./build_dir_arm/import/tagged_imports/freertos_arm/", "-I./dfruntime/runtime/phobos"
+    ];
+    // default directories to be searched for libraries when linking
+    lib-dirs = [
+        "./dfruntime/build_all_dir/lib",
+    ];
+    // default rpath when linking against the shared default libs
+    rpath = "%%ldcbinarypath%%/../lib32";
+};
+```
+
+And then build Phobos by the same way as druntime previously, but replace D_EXTRA_FLAGS by adding `-conf` and `--d-version` options:
+```
+    -D D_EXTRA_FLAGS="--mtriple=thumbv7em-unknown-none-eabi;--fthread-model=local-exec;-conf=/path/to/ldc2_freertos.conf;--d-version=GENERIC_IO;--verrors=0" \
+```
+
+Then build Phobos:
+```
+ninja -C build_dir_arm/ phobos2-ldc
+```
+
 That's all!
 
 But there is another important point: in order to use obtained druntime binary you will also need compiled FreeRTOS and Picolibc binaries.
