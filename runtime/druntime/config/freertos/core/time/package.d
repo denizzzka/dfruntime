@@ -20,8 +20,8 @@ long currTicks() @trusted nothrow @nogc
 enum ClockType
 {
     normal = 0,
-    //~ coarse = 2,
-    //~ precise = 3,
+    coarse = 2, /// unsupported on this platform
+    precise = 3, /// unsupported on this platform
     second = 6, //TODO: used only for druntime core unittest, do something with this
 }
 

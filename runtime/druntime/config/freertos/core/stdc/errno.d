@@ -3,11 +3,16 @@ module core.stdc.errno;
 @nogc:
 nothrow:
 
-extern(C) extern __gshared int errno;
+extern(C)
+pragma(mangle, "errno") // picolibc
+extern __gshared int errno_var;
+
+//TODO: Phobos: revert corresponding safe->trusted change
+extern (C) ref int errno() @trusted => errno_var;
 
 extern (C) ref int __error()
 {
-    return errno;
+    return errno_var;
 }
 
 private auto assumeFakeAttributesRefReturn(T)(T t) @trusted
@@ -23,3 +28,6 @@ ref int fakePureErrno() pure
 {
     return assumeFakeAttributesRefReturn(&__error)();
 }
+
+//TODO: move to picolibc tag:
+enum EAGAIN = 11;

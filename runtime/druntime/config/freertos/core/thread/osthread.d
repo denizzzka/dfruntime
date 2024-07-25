@@ -73,7 +73,12 @@ in(arg)
         append( t );
 }
 
-ThreadID getpid() nothrow @nogc
+size_t getpid() nothrow @nogc
+{
+    return cast(size_t) getThreadID();
+}
+
+private ThreadID getThreadID() nothrow @nogc
 {
     return os.xTaskGetCurrentTaskHandle();
 }
@@ -151,7 +156,7 @@ private extern(C) void lowlevelThread_entryPoint(void* ctx) nothrow
 
     lltp.dg();
 
-    ThreadID tid = getpid();
+    ThreadID tid = getThreadID();
 
     lowlevelLock.lock_nothrow();
 

@@ -13,4 +13,4 @@ import core.stdc.stdio: _iobuf, FILE;
 
 int fputwc(wchar_t c, _iobuf* fp);
 int fgetwc(_iobuf* fp);
-int fwide(FILE* stream, int mode);
+int fwide(FILE* stream, int mode) @safe;
