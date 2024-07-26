@@ -14,6 +14,7 @@ And I want to program for all sorts of MCUs/CPUs/OSes/etc using same my favorite
 First step is to make sure that nothing is broken and everything works under usual Linux.
 Build whole ldc2:
 ```
+> git clone --recurse-submodules url/to/this/repo
 > cmake -G Ninja -B build_all_dir
 > ninja -C all_build/ all
 ```
