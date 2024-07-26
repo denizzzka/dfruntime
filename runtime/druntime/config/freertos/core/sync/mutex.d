@@ -21,10 +21,10 @@ class Mutex : Object.Monitor
 
     private SemaphoreHandle_t mtx = void;
 
-    this(Object obj) @safe nothrow @nogc
+    this(Object obj) @trusted nothrow @nogc
     {
         this();
-        obj.__monitor = this;
+        obj.__monitor = cast(void*) this;
     }
 
     this() @nogc nothrow @trusted
