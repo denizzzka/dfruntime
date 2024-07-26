@@ -30,6 +30,17 @@ struct MainTaskProperties
 
 __gshared static MainTaskProperties mainTaskProperties;
 
+// Init FreeRTOS main task stack size:
+import ldc.attributes;
+
+@section(".init_array")
+immutable initMainStackSize_ptr = &initMainStackSize;
+
+void initMainStackSize()
+{
+    mainTaskProperties.taskStackSizeWords = 25 * 1024 / 4;
+}
+
 template _d_cmain()
 {
     extern(C):
