@@ -55,7 +55,7 @@ template _d_cmain()
     /// Type of the D main() function (`_Dmain`).
     private alias int function(char[][] args) MainFunc;
 
-    int _d_run_main2(char[][] args, object.size_t totalArgsLength, MainFunc mainFunc);
+    import core.internal.d_run_main2: _d_run_main2;
 
     import core.internal.entrypoint: MainTaskProperties, mainTaskProperties;
 
