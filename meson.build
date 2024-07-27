@@ -36,6 +36,7 @@ druntime_tgt = custom_target('druntime_tgt',
     command :
     [
         cmake,
+        'libdruntime-ldc.a', #ninja target
         '-S', '@CURRENT_SOURCE_DIR@' / 'runtime',
         '-B', '@OUTDIR@',
         '-D', 'D_EXTRA_FLAGS=--mtriple=thumbv7em-unknown-none-eabi;--fthread-model=local-exec;-conf=;--d-version=GENERIC_IO;--verrors=0',
@@ -53,7 +54,7 @@ druntime_static_lib = static_library(
 
 conf_data = configuration_data()
 conf_data.set('ADDITIONAL_DEFAULT_LDC_SWITCHES', '')
-conf_data.set('CONF_IMPORTS', '-Iruntime/druntime/src, -Iimport/tagged_imports/freertos_arm/')
+conf_data.set('CONF_IMPORTS', '"-Iruntime/druntime/src", "-I'+meson.current_build_dir()+'/import/tagged_imports/freertos_arm/"')
 conf_data.set('CMAKE_BINARY_DIR', druntime_tgt[0].full_path())
 conf_data.set('LIB_SUFFIX', '')
 conf_data.set('OPTIONAL_COMPILER_RT_DIR', '')
@@ -74,6 +75,7 @@ phobos_tgt = custom_target('phobos_tgt',
     command :
     [
         cmake,
+        'libphobos2-ldc.a', #ninja target
         '-S', '@CURRENT_SOURCE_DIR@' / 'runtime',
         '-B', '@OUTDIR@',
         '-D', 'D_EXTRA_FLAGS=--mtriple=thumbv7em-unknown-none-eabi;--fthread-model=local-exec;-conf='+ldc2_druntime_conf.full_path()+';--d-version=GENERIC_IO;--verrors=0',
@@ -81,13 +83,15 @@ phobos_tgt = custom_target('phobos_tgt',
 )
 
 phobos_dep = declare_dependency(
-    link_with: phobos_tgt,
+    link_with: [
+        phobos_tgt,
+        druntime_tgt, # to provide tagged include/ for compilation
+    ]
 )
 
 phobos_static_lib = static_library(
     'phobos',
     dependencies: [
-        druntime_dep,
         phobos_dep,
     ],
 )
