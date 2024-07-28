@@ -20,13 +20,14 @@ base_opts = [
         '-D', 'CMAKE_C_COMPILER=clang',
         '-D', 'CMAKE_SYSTEM_PROCESSOR='+host_machine.cpu_family(),
         '-D', 'CMAKE_SYSTEM_NAME=EXTERNAL',
-#~         '-D', 'CMAKE_C_FLAGS=-target thumbv7em-unknown-none-eabi -fshort-enums', #FIXME: replace triple and options
-#~         '-D', 'CMAKE_EXE_LINKER_FLAGS="-target thumbv7em-unknown-none-eabi --no-standard-libraries"',
         '-D', 'BUILD_SHARED_LIBS=OFF',
         '-D', 'C_SYSTEM_LIBS=',
         '-D', 'TARGET_SYSTEM=freertos_arm',
         '-D', 'EXTERNAL_TAGS=freertos,default_abort',
 ]
+
+#FIXME: duplicates cross file settings
+d_args_semi = '--mtriple=thumbv7em-unknown-none-eabi;--fthread-model=local-exec;--verrors=0'
 
 druntime_tgt = custom_target('druntime_tgt',
     output:
@@ -39,7 +40,7 @@ druntime_tgt = custom_target('druntime_tgt',
         'libdruntime-ldc.a', #ninja target
         '-S', '@CURRENT_SOURCE_DIR@' / 'runtime',
         '-B', '@OUTDIR@',
-        '-D', 'D_EXTRA_FLAGS=--mtriple=thumbv7em-unknown-none-eabi;--fthread-model=local-exec;-conf=;--d-version=GENERIC_IO;--verrors=0',
+        '-D', 'D_EXTRA_FLAGS='+d_args_semi+';-conf=',
     ] + base_opts,
 )
 
@@ -75,10 +76,10 @@ phobos_tgt = custom_target('phobos_tgt',
     command :
     [
         cmake,
-        'libphobos2-ldc.a', #ninja target
+        'libphobos2-ldc.a', #ninja target name passed to wrapper as first CLI argument
         '-S', '@CURRENT_SOURCE_DIR@' / 'runtime',
         '-B', '@OUTDIR@',
-        '-D', 'D_EXTRA_FLAGS=--mtriple=thumbv7em-unknown-none-eabi;--fthread-model=local-exec;-conf='+ldc2_druntime_conf.full_path()+';--d-version=GENERIC_IO;--verrors=0',
+        '-D', 'D_EXTRA_FLAGS='+d_args_semi+';--d-version=GENERIC_IO;-conf='+ldc2_druntime_conf.full_path(),
     ] + base_opts,
 )
 
