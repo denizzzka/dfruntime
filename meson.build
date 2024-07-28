@@ -12,6 +12,14 @@ ldc2 = find_program('ldc2')
 
 cmake = find_program('cmake_wrapper.sh')
 
+target_system = meson.get_external_property('target_system', 'AUTO')
+external_tags = meson.get_external_property('external_tags', '')
+tags_opts = (external_tags == '') ? [] : [
+    '-D', 'CMAKE_SYSTEM_NAME=EXTERNAL',
+    '-D', 'TARGET_SYSTEM=' + target_system,
+    '-D', 'EXTERNAL_TAGS=' + external_tags,
+]
+
 base_opts = [
         '-G', 'Ninja',
         '-D', 'LDC_EXE_FULL=' + ldc2.full_path(),
@@ -19,15 +27,12 @@ base_opts = [
         '-D', 'DMDFE_PATCH_VERSION=1',
         '-D', 'CMAKE_C_COMPILER=' + meson.get_compiler('c').get_id(),
         '-D', 'CMAKE_SYSTEM_PROCESSOR=' + host_machine.cpu_family(),
-        '-D', 'CMAKE_SYSTEM_NAME=EXTERNAL',
         '-D', 'BUILD_SHARED_LIBS=OFF',
         '-D', 'C_SYSTEM_LIBS=',
-        '-D', 'TARGET_SYSTEM=freertos_arm',
-        '-D', 'EXTERNAL_TAGS=freertos,default_abort',
-]
+] + tags_opts
 
 d_args_semi = ';'.join(
-    meson.get_external_property('d_args_external')
+    meson.get_external_property('d_args_external', '')
 )
 
 druntime_tgt = custom_target('druntime_tgt',
@@ -57,7 +62,7 @@ druntime_dep = declare_dependency(
 
 conf_data = configuration_data()
 conf_data.set('ADDITIONAL_DEFAULT_LDC_SWITCHES', '')
-conf_data.set('CONF_IMPORTS', '"-Iruntime/druntime/src", "-I'+meson.current_build_dir()+'/libdruntime-ldc.a.p/import/tagged_imports/freertos_arm/"')
+conf_data.set('CONF_IMPORTS', '"-Iruntime/druntime/src", "-I'+meson.current_build_dir()+'/libdruntime-ldc.a.p/import/tagged_imports/'+meson.get_external_property('target_system', host_machine.system())+'/"')
 conf_data.set('CMAKE_BINARY_DIR', druntime_tgt[0].full_path())
 conf_data.set('LIB_SUFFIX', '')
 conf_data.set('OPTIONAL_COMPILER_RT_DIR', '')
