@@ -46,13 +46,13 @@ druntime_tgt = custom_target('druntime_tgt',
     ] + base_opts,
 )
 
-druntime_dep = declare_dependency(
+druntime_static_lib = static_library(
+    'druntime',
     link_with: druntime_tgt,
 )
 
-druntime_static_lib = static_library(
-    'druntime',
-    dependencies: druntime_dep,
+druntime_dep = declare_dependency(
+    link_with: druntime_static_lib,
 )
 
 conf_data = configuration_data()
@@ -75,6 +75,7 @@ phobos_tgt = custom_target('phobos_tgt',
     [
         'libphobos2-ldc.a',
     ],
+    depends: druntime_tgt,
     command :
     [
         cmake,
@@ -86,18 +87,16 @@ phobos_tgt = custom_target('phobos_tgt',
     ] + base_opts,
 )
 
+phobos_static_lib = static_library(
+    'phobos',
+    link_with: druntime_static_lib,
+)
+
 phobos_dep = declare_dependency(
     link_with: [
         phobos_tgt,
-        druntime_tgt, # to provide tagged include/ for compilation
+        druntime_tgt, # to provide tagged include/ for compilation, FIXME
     ]
-)
-
-phobos_static_lib = static_library(
-    'phobos',
-    dependencies: [
-        phobos_dep,
-    ],
 )
 
 #~ firmware = executable(
