@@ -7,10 +7,13 @@ export CMAKE_INSTALL_MODE=SYMLINK_OR_COPY
 # ninja target
 TGT=$1
 
-# -B value place according to meson.build
-BUILD_DIR=$5
+# result dir
+COPY_TO=$2
 
-cmake "${@:1}"
+# -B value place according to meson.build
+BUILD_DIR=$6
+
+cmake "${@:2}"
 
 ninja -C "$BUILD_DIR" -j8 "$TGT"
-cp "$BUILD_DIR/lib/"* "$BUILD_DIR/"
+cp "$BUILD_DIR/lib/"* "$COPY_TO/"

@@ -38,8 +38,9 @@ druntime_tgt = custom_target('druntime_tgt',
     [
         cmake,
         'libdruntime-ldc.a', #ninja target
+        '@OUTDIR@', #copy target to this dir
         '-S', '@CURRENT_SOURCE_DIR@' / 'runtime',
-        '-B', '@OUTDIR@',
+        '-B', '@PRIVATE_DIR@',
         '-D', 'D_EXTRA_FLAGS='+d_args_semi+';-conf=',
     ] + base_opts,
 )
@@ -55,7 +56,7 @@ druntime_static_lib = static_library(
 
 conf_data = configuration_data()
 conf_data.set('ADDITIONAL_DEFAULT_LDC_SWITCHES', '')
-conf_data.set('CONF_IMPORTS', '"-Iruntime/druntime/src", "-I'+meson.current_build_dir()+'/import/tagged_imports/freertos_arm/"')
+conf_data.set('CONF_IMPORTS', '"-Iruntime/druntime/src", "-I'+meson.current_build_dir()+'/libdruntime-ldc.a.p/import/tagged_imports/freertos_arm/"')
 conf_data.set('CMAKE_BINARY_DIR', druntime_tgt[0].full_path())
 conf_data.set('LIB_SUFFIX', '')
 conf_data.set('OPTIONAL_COMPILER_RT_DIR', '')
@@ -77,8 +78,9 @@ phobos_tgt = custom_target('phobos_tgt',
     [
         cmake,
         'libphobos2-ldc.a', #ninja target name passed to wrapper as first CLI argument
+        '@OUTDIR@', #copy target to this dir
         '-S', '@CURRENT_SOURCE_DIR@' / 'runtime',
-        '-B', '@OUTDIR@',
+        '-B', '@PRIVATE_DIR@',
         '-D', 'D_EXTRA_FLAGS='+d_args_semi+';--d-version=GENERIC_IO;-conf='+ldc2_druntime_conf.full_path(),
     ] + base_opts,
 )
