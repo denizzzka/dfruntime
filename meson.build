@@ -17,8 +17,8 @@ base_opts = [
         '-D', 'LDC_EXE_FULL=' + ldc2.full_path(),
         '-D', 'DMDFE_MINOR_VERSION=109',
         '-D', 'DMDFE_PATCH_VERSION=1',
-        '-D', 'CMAKE_C_COMPILER=clang',
-        '-D', 'CMAKE_SYSTEM_PROCESSOR='+host_machine.cpu_family(),
+        '-D', 'CMAKE_C_COMPILER=' + meson.get_compiler('c').get_id(),
+        '-D', 'CMAKE_SYSTEM_PROCESSOR=' + host_machine.cpu_family(),
         '-D', 'CMAKE_SYSTEM_NAME=EXTERNAL',
         '-D', 'BUILD_SHARED_LIBS=OFF',
         '-D', 'C_SYSTEM_LIBS=',
@@ -26,8 +26,9 @@ base_opts = [
         '-D', 'EXTERNAL_TAGS=freertos,default_abort',
 ]
 
-#FIXME: duplicates cross file settings
-d_args_semi = '--mtriple=thumbv7em-unknown-none-eabi;--fthread-model=local-exec;--verrors=0'
+d_args_semi = ';'.join(
+    meson.get_external_property('d_args_external')
+)
 
 druntime_tgt = custom_target('druntime_tgt',
     output:
