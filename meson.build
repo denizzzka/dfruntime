@@ -65,20 +65,15 @@ druntime_tgt = custom_target('druntime_tgt',
         '-B', '@PRIVATE_DIR@',
         '-D', 'D_EXTRA_FLAGS='+d_args_semi+';-conf=',
     ] + base_opts,
+    install: true,
+    install_dir: 'lib',
 )
 
-druntime_lib = library(
-    'druntime',
-    link_with: druntime_tgt,
-)
-
-druntime_dep = declare_dependency(
-    link_with: druntime_lib,
-)
+tagged_include_dir = meson.current_build_dir() / druntime_ninja_taget+'.p/import/tagged_imports' / meson.get_external_property('target_system', host_machine.system())
 
 conf_data = configuration_data()
 conf_data.set('ADDITIONAL_DEFAULT_LDC_SWITCHES', '')
-conf_data.set('CONF_IMPORTS', '"-Iruntime/druntime/src", "-I'+meson.current_build_dir()+'/'+druntime_ninja_taget+'.p/import/tagged_imports/'+meson.get_external_property('target_system', host_machine.system())+'/"')
+conf_data.set('CONF_IMPORTS', '"-Iruntime/druntime/src", "-I'+tagged_include_dir+'/"')
 conf_data.set('CMAKE_BINARY_DIR', druntime_tgt[0].full_path())
 conf_data.set('LIB_SUFFIX', '')
 conf_data.set('OPTIONAL_COMPILER_RT_DIR', '')
@@ -103,16 +98,26 @@ phobos_tgt = custom_target('phobos_tgt',
         '-B', '@PRIVATE_DIR@',
         '-D', 'D_EXTRA_FLAGS='+d_args_semi+';--d-version=GENERIC_IO;-conf='+ldc2_druntime_conf.full_path(),
     ] + base_opts,
+    install: true,
+    install_dir: 'lib',
 )
 
-phobos_lib = library(
-    'phobos',
-    link_with: druntime_lib,
-)
+install_subdir('runtime/druntime/src', install_dir: 'import')
+install_subdir(tagged_include_dir, install_dir: 'import')
 
-phobos_dep = declare_dependency(
-    link_with: phobos_lib
-)
+#~ conf_data_etc = configuration_data(conf_data)
+
+#~ conf_data_etc.set('CONF_IMPORTS', '"-I./import/src/", "-I./import/'+host_machine.system()+'/"')
+#~ conf_data_etc.set('CMAKE_BINARY_DIR', '.')
+#~ conf_data_etc.set('SHARED_LIBS_RPATH', 'lib/')
+
+#~ ldc2_conf = configure_file(
+#~     input: 'ldc2.conf.in',
+#~     configuration: conf_data_etc,
+#~     output: 'ldc2.conf',
+#~     install: true,
+#~     install_dir: 'etc',
+#~ )
 
 #~ firmware = executable(
 #~     'firmware.elf',
