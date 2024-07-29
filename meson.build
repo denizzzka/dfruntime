@@ -71,18 +71,22 @@ druntime_tgt = custom_target('druntime_tgt',
 
 tagged_include_dir = meson.current_build_dir() / druntime_ninja_taget+'.p/import/tagged_imports' / meson.get_external_property('target_system', host_machine.system())
 
-conf_data = configuration_data()
-conf_data.set('ADDITIONAL_DEFAULT_LDC_SWITCHES', '')
-conf_data.set('CONF_IMPORTS', '"-Iruntime/druntime/src", "-I'+tagged_include_dir+'/"')
-conf_data.set('CMAKE_BINARY_DIR', druntime_tgt[0].full_path())
-conf_data.set('LIB_SUFFIX', '')
-conf_data.set('OPTIONAL_COMPILER_RT_DIR', '')
-conf_data.set('SHARED_LIBS_RPATH', druntime_tgt[0].full_path())
-conf_data.set('COMMON_CONF_LINES', '')
+common_cfg_dict = {
+    'ADDITIONAL_DEFAULT_LDC_SWITCHES': '',
+    'LIB_SUFFIX': '',
+    'OPTIONAL_COMPILER_RT_DIR': '',
+    'COMMON_CONF_LINES': '',
+}
+
+ldc2_druntime_cfg_data = configuration_data(common_cfg_dict)
+
+ldc2_druntime_cfg_data.set('CONF_IMPORTS', '"-Iruntime/druntime/src", "-I'+tagged_include_dir+'/"')
+ldc2_druntime_cfg_data.set('CMAKE_BINARY_DIR', druntime_tgt[0].full_path())
+ldc2_druntime_cfg_data.set('SHARED_LIBS_RPATH', druntime_tgt[0].full_path())
 
 ldc2_druntime_conf = configure_file(
     input: 'ldc2.conf.in',
-    configuration: conf_data,
+    configuration: ldc2_druntime_cfg_data,
     output: 'ldc2_druntime.conf',
 )
 
@@ -105,19 +109,19 @@ phobos_tgt = custom_target('phobos_tgt',
 install_subdir('runtime/druntime/src', install_dir: 'import')
 install_subdir(tagged_include_dir, install_dir: 'import')
 
-#~ conf_data_etc = configuration_data(conf_data)
+etc_cfg_data = configuration_data(common_cfg_dict)
+etc_cfg_data.set('CONF_IMPORTS', '"-I../import/src/", "-I../import/'+host_machine.system()+'/"')
+etc_cfg_data.set('ADDITIONAL_DEFAULT_LDC_SWITCHES', '"-defaultlib=druntime-ldc,phobos2-ldc"')
+etc_cfg_data.set('CMAKE_BINARY_DIR', '.')
+etc_cfg_data.set('SHARED_LIBS_RPATH', 'lib/')
 
-#~ conf_data_etc.set('CONF_IMPORTS', '"-I./import/src/", "-I./import/'+host_machine.system()+'/"')
-#~ conf_data_etc.set('CMAKE_BINARY_DIR', '.')
-#~ conf_data_etc.set('SHARED_LIBS_RPATH', 'lib/')
-
-#~ ldc2_conf = configure_file(
-#~     input: 'ldc2.conf.in',
-#~     configuration: conf_data_etc,
-#~     output: 'ldc2.conf',
-#~     install: true,
-#~     install_dir: 'etc',
-#~ )
+ldc2_conf = configure_file(
+    input: 'ldc2.conf.in',
+    configuration: etc_cfg_data,
+    output: 'ldc2_tagged.conf',
+    install: true,
+    install_dir: 'etc',
+)
 
 #~ firmware = executable(
 #~     'firmware.elf',
