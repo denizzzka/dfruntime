@@ -3,9 +3,10 @@ cmake_minimum_required(VERSION 3.4.3)
 # ldc2 isn't able to consume .obj files for non-Windows targets
 if(NOT "${TARGET_SYSTEM}" MATCHES "Windows")
     set(CMAKE_USER_MAKE_RULES_OVERRIDE_C "${CMAKE_CURRENT_SOURCE_DIR}/set_o_output_extension.cmake")
+    set(CMAKE_USER_MAKE_RULES_OVERRIDE_ASM "${CMAKE_CURRENT_SOURCE_DIR}/set_o_output_extension.cmake")
 endif()
 
-project(runtime C)
+project(runtime C ASM)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -260,7 +261,7 @@ endif()
 
 # druntime ASM parts
 set(DRUNTIME_ASM)
-if("${TARGET_SYSTEM}" MATCHES "UNIX")
+if(NOT "${TARGET_SYSTEM}" MATCHES "Windows")
     list(APPEND DRUNTIME_ASM ${RUNTIME_DIR}/src/core/threadasm.S ${RUNTIME_DIR}/src/ldc/eh_asm.S)
 endif()
 
