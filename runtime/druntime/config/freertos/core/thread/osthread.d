@@ -83,6 +83,13 @@ private ThreadID getThreadID() nothrow @nogc
     return os.xTaskGetCurrentTaskHandle();
 }
 
+private extern(C) void* _d_eh_swapContext(void* newContext) nothrow @nogc;
+
+void* swapContext(void* newContext) nothrow @nogc
+{
+    return _d_eh_swapContext(newContext);
+}
+
 struct LowLevelThreadSystemParams
 {
     const(char*) name = "D low-level";
