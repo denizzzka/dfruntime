@@ -27,6 +27,10 @@ enum ClockType
 
 package:
 
+extern(C) void _d_initMonoTime() @nogc nothrow
+{
+}
+
 import core.time;
 
 //FIXME: TickDuration is deprecated!
