@@ -45,6 +45,7 @@ base_opts = [
         '-D', 'DMDFE_MINOR_VERSION=109',
         '-D', 'DMDFE_PATCH_VERSION=1',
         '-D', 'CMAKE_C_COMPILER=' + meson.get_compiler('c').get_id(),
+        '-D', 'RT_CFLAGS=' + ' '.join(meson.get_external_property('c_args_external', '')),
         '-D', 'CMAKE_SYSTEM_PROCESSOR=' + host_machine.cpu_family(),
         '-D', 'BUILD_SHARED_LIBS=' + build_shared,
         '-D', 'C_SYSTEM_LIBS=',
