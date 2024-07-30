@@ -243,7 +243,7 @@ extern (C) void thread_init() @nogc
     import core.internal.entrypoint: mainTaskProperties;
     mainThread.m_main.bstack = mainTaskProperties.stackBottom;
 
-    ThreadBase.sm_main = external_attachThread(mainThread);
+    ThreadBase.sm_main = attachThread(mainThread);
 }
 
 private alias MainThreadStore = void[__traits(classInstanceSize, Thread)];
@@ -374,8 +374,7 @@ bool findLowLevelThread(ThreadID tid) nothrow @nogc
     assert(false, "Not implemented");
 }
 
-//TODO: this is only for internal use, rename it to more appropriate?
-Thread external_attachThread(ThreadBase thisThread) @nogc
+ThreadBase attachThread(ThreadBase thisThread) @nogc nothrow
 {
     Thread t = thisThread.toThread;
 
