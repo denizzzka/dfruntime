@@ -22,21 +22,32 @@ tags_opts = (external_tags == '') ? [] : [
 
 dflopt = get_option('default_library')
 
+if get_option('debug') == true
+    debug_suffix = '-debug'
+else
+    debug_suffix = ''
+endif
+
+# Build debug and release versions just because we can
+#TODO: It's disgusting:
 if dflopt == 'shared'
     build_shared = 'ON'
-    druntime_tgts = ['libdruntime-ldc-shared.so']
-    druntime_ninja_taget = 'libdruntime-ldc-shared.so'
-    phobos_tgts = ['libphobos2-ldc-shared.so']
+    druntime_ninja_taget = 'libdruntime-ldc'+debug_suffix+'-shared.so'
+    phobos_ninja_target = 'libphobos2-ldc'+debug_suffix+'-shared.so'
+    druntime_tgts = [druntime_ninja_taget]
+    phobos_tgts = [phobos_ninja_target]
 elif dflopt == 'static'
     build_shared = 'OFF'
-    druntime_tgts = ['libdruntime-ldc.a']
-    druntime_ninja_taget = 'libdruntime-ldc.a'
-    phobos_tgts = ['libphobos2-ldc.a']
+    druntime_ninja_taget = 'libdruntime-ldc'+debug_suffix+'.a'
+    phobos_ninja_target = 'libphobos2-ldc'+debug_suffix+'.a'
+    druntime_tgts = [druntime_ninja_taget]
+    phobos_tgts = [phobos_ninja_target]
 else
     build_shared = 'BOTH'
-    druntime_tgts = ['libdruntime-ldc-shared.so', 'libdruntime-ldc.a']
-    druntime_ninja_taget = 'libdruntime-ldc-shared.so'
-    phobos_tgts = ['libphobos2-ldc-shared.so', 'libphobos2-ldc.a']
+    druntime_ninja_taget = 'libdruntime-ldc'+debug_suffix+'-shared.so'
+    phobos_ninja_target = 'libphobos2-ldc'+debug_suffix+'-shared.so'
+    druntime_tgts = [druntime_ninja_taget, 'libdruntime-ldc'+debug_suffix+'.a']
+    phobos_tgts = [phobos_ninja_target, 'libphobos2-ldc'+debug_suffix+'.a']
 endif
 
 base_opts = [
@@ -82,8 +93,8 @@ common_cfg_dict = {
 ldc2_druntime_cfg_data = configuration_data(common_cfg_dict)
 
 ldc2_druntime_cfg_data.set('CONF_IMPORTS', '"-Iruntime/druntime/src", "-I'+tagged_include_dir+'/"')
-ldc2_druntime_cfg_data.set('CMAKE_BINARY_DIR', druntime_tgt[0].full_path())
-ldc2_druntime_cfg_data.set('SHARED_LIBS_RPATH', druntime_tgt[0].full_path())
+ldc2_druntime_cfg_data.set('CMAKE_BINARY_DIR', druntime_tgt[0].full_path()) #unused
+ldc2_druntime_cfg_data.set('SHARED_LIBS_RPATH', druntime_tgt[0].full_path()) #unused
 
 ldc2_druntime_conf = configure_file(
     input: 'ldc2.conf.in',
@@ -100,7 +111,7 @@ phobos_tgt = custom_target('phobos_tgt',
     command :
     [
         cmake,
-        (build_shared == 'OFF') ? 'libphobos2-ldc.a' : 'libphobos2-ldc-shared.so', #ninja target, FIXME: must be able to build both targets simultaneously
+        phobos_ninja_target, #ninja target, FIXME: must be able to build both targets simultaneously
         '@OUTDIR@', #copy target to this dir
         '-S', '@CURRENT_SOURCE_DIR@' / 'runtime',
         '-B', '@PRIVATE_DIR@',
