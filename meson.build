@@ -28,7 +28,6 @@ else
     debug_suffix = ''
 endif
 
-# Build debug and release versions just because we can
 #TODO: It's disgusting:
 if dflopt == 'shared'
     build_shared = 'ON'
