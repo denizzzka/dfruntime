@@ -113,7 +113,7 @@ phobos_tgt = custom_target('phobos_tgt',
 install_subdir('runtime/phobos', install_dir: 'import')
 
 etc_cfg_data = configuration_data(common_cfg_dict)
-etc_cfg_data.set('CONF_IMPORTS', '"-I../import/src/", "-I../import/tagged/", "-I../import/phobos/"')
+etc_cfg_data.set('CONF_IMPORTS', '"-I%%ldcconfigpath%%/../import/src/", "-I%%ldcconfigpath%%/../import/tagged/", "-I%%ldcconfigpath%%/../import/phobos/"')
 etc_cfg_data.set('ADDITIONAL_DEFAULT_LDC_SWITCHES', '"-defaultlib=druntime-ldc,phobos2-ldc"')
 etc_cfg_data.set('CMAKE_BINARY_DIR', '.')
 etc_cfg_data.set('SHARED_LIBS_RPATH', 'lib/')
