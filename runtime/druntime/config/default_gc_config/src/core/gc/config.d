@@ -12,16 +12,7 @@ import core.internal.parseoptions;
 
 __gshared Config config;
 
-version(DruntimeAbstractRt)
-{
-    static import external.core.gc;
-
-    alias Config = external.core.gc.Config;
-}
-else
-    alias Config = DefaultConfigStruct;
-
-struct DefaultConfigStruct
+struct Config
 {
     bool disable;            // start disabled
     bool fork = false;       // optional concurrent behaviour
