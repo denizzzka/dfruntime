@@ -4,6 +4,7 @@ import core.stdc.config: c_long;
 
 nothrow:
 @nogc:
+extern(C):
 
 ///
 alias fpos_t = c_long;
@@ -24,25 +25,9 @@ enum
 ///
 struct FILE;
 
-private
-{
-    extern FILE* __posix_stdin;
-    extern FILE* __posix_stdout;
-    extern FILE* __posix_stderr;
-}
-
-__gshared FILE* stdin;
-__gshared FILE* stdout;
-__gshared FILE* stderr;
-
-shared static this()
-{
-    stdin = __posix_stdin;
-    stdout = __posix_stdout;
-    stderr = __posix_stderr;
-}
-
-extern(C):
+extern __gshared FILE* stdin;
+extern __gshared FILE* stdout;
+extern __gshared FILE* stderr;
 
 enum
 {
