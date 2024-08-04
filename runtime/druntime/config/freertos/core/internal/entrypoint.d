@@ -105,7 +105,11 @@ private extern (C) int _d_run_main2(char[][] args, size_t totalArgsLength, MainF
         }
     }
 
-    return result;
+    // Return from main() is impossible for FreeRTOS, thus just calling exit()
+    import core.stdc.stdlib: exit;
+    exit(result);
+
+    // return result;
 }
 
 nothrow:
