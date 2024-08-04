@@ -9,9 +9,9 @@ public import core.stdc.stddef: wchar_t;
 
 alias wint_t = wchar_t;
 
-import core.stdc.stdio: _iobuf, FILE;
+import core.stdc.stdio: FILE;
 
-int fputwc(wchar_t c, _iobuf* fp);
-int fgetwc(_iobuf* fp);
+int fputwc(wchar_t c, FILE* fp);
+int fgetwc(FILE* fp);
 int fwide(FILE* stream, int mode) @safe;
 pure size_t wcslen(scope const wchar_t* s);

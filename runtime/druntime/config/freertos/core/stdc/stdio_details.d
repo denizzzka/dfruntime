@@ -24,9 +24,25 @@ enum
 ///
 struct FILE;
 
+private
+{
+    extern FILE* __posix_stdin;
+    extern FILE* __posix_stdout;
+    extern FILE* __posix_stderr;
+}
+
 __gshared FILE* stdin;
 __gshared FILE* stdout;
 __gshared FILE* stderr;
+
+shared static this()
+{
+    stdin = __posix_stdin;
+    stdout = __posix_stdout;
+    stderr = __posix_stderr;
+}
+
+extern(C):
 
 enum
 {

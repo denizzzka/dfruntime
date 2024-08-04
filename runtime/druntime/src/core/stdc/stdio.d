@@ -65,7 +65,7 @@ enum
     SEEK_END
 }
 
-// fpos_t, _iobuf, FILE, etc
+// fpos_t, FILE, etc
 public import core.stdc.stdio_details;
 
 enum
