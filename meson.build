@@ -102,7 +102,12 @@ ldc2_druntime_conf = configure_file(
 )
 
 install_subdir('runtime/druntime/src', install_dir: 'import')
-install_subdir(tagged_include_dir, strip_directory: true, install_dir: 'import/tagged')
+install_subdir(
+    tagged_include_dir,
+    strip_directory: true,
+    follow_symlinks: false, # TODO: set up from CLI
+    install_dir: 'import/tagged'
+)
 
 phobos_tgt = custom_target('phobos_tgt',
     output: phobos_tgts,

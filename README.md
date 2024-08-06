@@ -11,76 +11,36 @@ And I want to program for all sorts of MCUs/CPUs/OSes/etc using same my favorite
 
 # Build for Linux
 
+All builds will be done using [Meson build system](https://mesonbuild.com/) because it is need to set up a huge number of build options for the all parts of build.
+
 First step is to make sure that nothing is broken and everything works under usual Linux.
-Build whole ldc2:
+Build druntime for Linux:
 ```
-> git clone --recurse-submodules url/to/this/repo
-> cmake -G Ninja -B build_all_dir
-> ninja -C all_build/ all
-```
-
-Or also we able to build just only D runtime:
-```
-> cmake -G Ninja -B build_dir/ -S runtime/ \
-    -D LDC_EXE_FULL=/full/path/to/bin/ldc2 \
-    -D DMDFE_MINOR_VERSION=109 \
-    -D DMDFE_PATCH_VERSION=1 \
-    -D 'TARGET_SYSTEM=Linux;UNIX' \
-    -D D_EXTRA_FLAGS=--d-version=CoreUnittest
-
-CMake Deprecation Warning at CMakeLists.txt:1 (cmake_minimum_required):
-  Compatibility with CMake < 3.5 will be removed from a future version of
-  CMake.
-
-  Update the VERSION argument <min> value or use a ...<max> suffix to tell
-  CMake that the project does not need compatibility with older versions.
-
-
--- The C compiler identification is Clang 18.1.7
--- Detecting C compiler ABI info
-[...]
--- Configuring done (4.8s)
--- Generating done (0.2s)
--- Build files have been written to: /some/path/dfruntime/build_dir
+> meson setup -Dbuildtype=release --prefix=$(pwd)/install_linux_release/ build_linux_release
+> ninja -C build_linux_release/ libdruntime-ldc-shared.so libphobos2-ldc-shared.so install
 ```
 
-Then build using Ninja and run tests:
+Now we can build something with this DRuntime and Phobos binaries:
 ```
-> ninja -C build_dir/ -j10 druntime-ldc druntime-test-runner
-> ./build_dir/druntime-test-runner
+> ldc2 -conf=install_linux_release/etc/ldc2_tagged.conf some_app.d
 ```
 
 Thus, you can use this fork as your usual regular DRuntime.
 
-# Build for FreeRTOS + ARM + Picolibc
+# Build for ARM Cortex-M4
 
-More complex example:
+Ok, lets build D runtime for ARM Cortex-M4. Runtime will use [FreeRTOS](https://www.freertos.org/) as "threads manager"
+and [picolibc](https://github.com/picolibc/picolibc) as libc:
 ```
-> cmake -G Ninja -B build_dir_arm/ -S runtime/ \
-    -D LDC_EXE_FULL=/full/path/to/bin/ldc2 \
-    -D DMDFE_MINOR_VERSION=109 \
-    -D DMDFE_PATCH_VERSION=1 \
-    -D CMAKE_C_COMPILER=clang \
-    -D CMAKE_SYSTEM_PROCESSOR=arm \
-    -D CMAKE_SYSTEM_NAME=EXTERNAL \
-    -D CMAKE_C_FLAGS="-target thumbv7em-unknown-none-eabi -fshort-enums" \
-    -D D_EXTRA_FLAGS="--mtriple=thumbv7em-unknown-none-eabi;--fthread-model=local-exec;--verrors=0" \
-    -D CMAKE_EXE_LINKER_FLAGS="-target thumbv7em-unknown-none-eabi --no-standard-libraries" \
-    -D BUILD_SHARED_LIBS=OFF \
-    -D C_SYSTEM_LIBS= \
-    -D TARGET_SYSTEM=freertos_arm \
-    -D EXTERNAL_TAGS=freertos,default_abort
-
-> ninja -C build_dir_arm/ -j10 druntime-ldc
-[...]
-[4/4] Linking D static library lib/libdruntime-ldc.a
+> meson setup -Dbuildtype=debug -Doptimization=s --prefix=$(pwd)/install_cortex-m4/ --cross-file meson/arm_cortex_m4_cross.ini build_debug_druntime_cortex-m4
+> ninja -C build_debug_druntime_cortex-m4/ libdruntime-ldc-debug.a libphobos2-ldc-debug.a install
 ```
 
 Make sure that it was actually obtained ARM 32 bit static library:
 ```
-> readelf -h build_dir_arm/lib/libdruntime-ldc.a | head -n 25
+> LANG=C readelf -h install_cortex-m4/lib/libdruntime-ldc-debug.a | head -n 25
 
-File: build_dir_arm/lib/libdruntime-ldc.a(atomic.o)
+File: install_cortex-m4/lib/libdruntime-ldc-debug.a(atomic.o)
 ELF Header:
   Magic:   7f 45 4c 46 01 01 01 00 00 00 00 00 00 00 00 00
   Class:                             ELF32
@@ -93,85 +53,23 @@ ELF Header:
   Version:                           0x1
   Entry point address:               0x0
   Start of program headers:          0 (bytes into file)
-  Start of section headers:          9680 (bytes into file)
+  Start of section headers:          49888 (bytes into file)
   Flags:                             0x5000000, Version5 EABI
   Size of this header:               52 (bytes)
   Size of program headers:           0 (bytes)
   Number of program headers:         0
   Size of section headers:           40 (bytes)
-  Number of section headers:         154
+  Number of section headers:         181
   Section header string table index: 1
 
-File: build_dir_arm/lib/libdruntime-ldc.a(attribute.o)
+File: install_cortex-m4/lib/libdruntime-ldc-debug.a(attribute.o)
 ELF Header:
-```
-
-# Build Phobos
-
-Now we have everything almost ready for build Phobos!
-The only thing we need to do is set the "tagged imports" dir to the compiler and set some necessary D version for Phobos.
-
-Create file `ldc2_freertos.conf` with your own correct paths:
-```
-default:
-{
-    // default switches injected before all explicit command-line switches
-    switches = [
-        "-defaultlib=phobos2-ldc,druntime-ldc",
-    ];
-    // default switches appended after all explicit command-line switches
-    post-switches = [
-        "-I./dfruntime/runtime/druntime/src", "-I./build_dir_arm/import/tagged_imports/freertos_arm/", "-I./dfruntime/runtime/phobos"
-    ];
-    // default directories to be searched for libraries when linking
-    lib-dirs = [
-        "./dfruntime/build_all_dir/lib",
-    ];
-    // default rpath when linking against the shared default libs
-    rpath = "%%ldcbinarypath%%/../lib32";
-};
-```
-
-And then build Phobos by the same way as druntime previously, but replace D_EXTRA_FLAGS by adding `-conf` and `--d-version` options:
-```
-    -D D_EXTRA_FLAGS="--mtriple=thumbv7em-unknown-none-eabi;--fthread-model=local-exec;-conf=/path/to/ldc2_freertos.conf;--d-version=GENERIC_IO;--verrors=0" \
-```
-
-Then build Phobos:
-```
-ninja -C build_dir_arm/ phobos2-ldc
 ```
 
 That's all!
 
 But there is another important point: in order to use obtained druntime binary you will also need compiled FreeRTOS and Picolibc binaries.
 You will need to link them together with your application.
-
-Also, trying to build test runner executable will tell you which specific symbols are required:
-```
-> ninja -C build_dir_arm/ -j10 druntime-test-runner | grep undefined
-ld.lld: error: undefined symbol: __aeabi_uldivmod
-ld.lld: error: undefined symbol: __aeabi_dcmpeq
-ld.lld: error: undefined symbol: realloc
-ld.lld: error: undefined symbol: isspace
-ld.lld: error: undefined symbol: memcmp
-ld.lld: error: undefined symbol: free
-ld.lld: error: undefined symbol: __aeabi_memcpy
-ld.lld: error: undefined symbol: __aeabi_memset4
-ld.lld: error: undefined symbol: _Unwind_Resume
-ld.lld: error: undefined symbol: sprintf
-ld.lld: error: undefined symbol: printf
-ld.lld: error: undefined symbol: putchar
-ld.lld: error: undefined symbol: __aeabi_f2d
-ld.lld: error: undefined symbol: malloc
-ld.lld: error: undefined symbol: _Unwind_VRS_Get
-ld.lld: error: undefined symbol: abort
-ld.lld: error: undefined symbol: _Unwind_VRS_Set
-ld.lld: error: undefined symbol: xTaskGetTickCount
-ld.lld: error: undefined symbol: __aeabi_ldivmod
-ld.lld: error: undefined symbol: __aeabi_l2d
-```
-(Yes, not so much!)
 
 <sup>Original README.md:</sup>
 
