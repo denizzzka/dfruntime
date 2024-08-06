@@ -34,7 +34,7 @@ Thus, you can use this fork as your usual regular DRuntime.
 Ok, lets build D runtime for ARM Cortex-M4. Runtime will use [FreeRTOS](https://www.freertos.org/) as "threads manager"
 and [picolibc](https://github.com/picolibc/picolibc) as libc:
 ```
-> meson setup -Doptimization=s --prefix=$(pwd)/install_cortex-m4/ --cross-file meson/arm_cortex_m4_cross.ini build_debug_druntime_cortex-m4
+> meson setup --optimization=s --prefix=$(pwd)/install_cortex-m4/ --cross-file meson/arm_cortex_m4_cross.ini build_debug_druntime_cortex-m4
 > ninja -C build_debug_druntime_cortex-m4/ libdruntime-ldc-debug.a libphobos2-ldc-debug.a install
 ```
 
