@@ -105,7 +105,7 @@ install_subdir('runtime/druntime/src', install_dir: 'import')
 install_subdir(
     tagged_include_dir,
     strip_directory: true,
-    follow_symlinks: false, # TODO: set up from CLI
+    follow_symlinks: true, # TODO: set up from CLI?
     install_dir: 'import/tagged'
 )
 
