@@ -95,7 +95,8 @@ void ctorsDtorsWarning() nothrow
  */
 }
 
-version(ARM):
+version(ARM)
+{
 
 import core.stdc.stdlib: aligned_alloc;
 import core.memory: GC;
@@ -146,4 +147,57 @@ void[] initTLSRanges() nothrow @nogc
 extern(C) extern void* __aeabi_read_tp() nothrow @nogc
 {
     return read_tp_secondary();
+}
+
+}
+else version (RISCV32)
+{
+
+import core.stdc.stdlib: aligned_alloc;
+import core.memory: GC;
+
+private enum TCB_size = 8; // FIXME: ARM EABI specific
+
+/***
+ * Called once per thread; returns array of thread local storage ranges
+ */
+void[] initTLSRanges() nothrow @nogc
+{
+    debug(PRINTF) printf("external initTLSRanges called\n");
+
+    debug
+    {
+        assert(read_tp_secondary() is null, "TLS already initialized?");
+    }
+
+    auto p = getTLSParams();
+
+    // TLS
+    import core.stdc.string: memcpy, memset;
+
+    void* tls = aligned_alloc(8, p.full_tls_size);
+    assert(tls, "cannot allocate TLS block");
+
+    // Copying TLS data
+    memcpy(tls, p.tdata_start, p.tdata_size);
+
+    // Init local bss by zeroes
+    memset(tls + p.tdata_size, 0x00, p.tbss_size);
+
+    assert(false, "TODO: TCB-related stuff is from ARM, need to change");
+    freertos.vTaskSetThreadLocalStoragePointer(null, 0, tls - TCB_size /* ARM EABI specific offset */);
+
+    debug
+    {
+        void* tls_arm = read_tp_secondary();
+        assert(tls - tls_arm == TCB_size);
+    }
+
+    // Register in GC
+    //TODO: move this info into our own SectionGroup implementation?
+    GC.addRange(tls, p.full_tls_size);
+
+    return tls[0 .. p.full_tls_size];
+}
+
 }
