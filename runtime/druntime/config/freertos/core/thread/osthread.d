@@ -605,10 +605,10 @@ class Thread : ThreadBase
 
 private void _taskYield() @nogc nothrow
 {
+    import ldc.llvmasm;
+
     version(ARM)
     {
-        import ldc.llvmasm;
-
         // taskYield() code what dpp can't convert from FreeRTOS headers
 
         /* Set a PendSV to request a context switch. */
@@ -623,6 +623,11 @@ private void _taskYield() @nogc nothrow
 
         __asm!()(`dsb`, "~{memory}");
         __asm!()(`isb`, "");
+    }
+    else version(RISCV32)
+    {
+        // __asm volatile ( "ecall" );
+        __asm!()(`ecall`, "");
     }
     else
         static assert(false, "Not implemented");
