@@ -139,6 +139,11 @@ void initMainStackSize()
     mainTaskProperties.taskStackSizeWords = 25 * 1024 / 4;
 }
 
+//TODO: remove
+version (ARM)
+    version = NeedStartMainLoop;
+
+version (NeedStartMainLoop)
 template _d_cmain()
 {
     extern(C):
@@ -209,6 +214,32 @@ template _d_cmain()
         vTaskStartScheduler(); // infinity loop
 
         return 6; // Out of memory
+    }
+}
+else
+template _d_cmain()
+{
+    extern(C):
+
+    int _Dmain(char[][] args);
+
+    /// Type of the D main() function (`_Dmain`).
+    private alias int function(char[][] args) MainFunc;
+
+    int _d_run_main2(char[][] args, object.size_t totalArgsLength, MainFunc mainFunc);
+
+    // To start D main() it is need to call this function from external code
+    void _d_run_main(void* mtp)
+    {
+        import core.stdc.stdlib: _Exit;
+
+        __gshared int main_ret = 7; // _d_run_main2 uncatched exception occured
+        scope(exit)
+        {
+            _Exit(main_ret); // It is impossible to escape from FreeRTOS main loop, thus just exit
+        }
+
+        main_ret = _d_run_main2(null, 0, &_Dmain);
     }
 }
 
