@@ -229,7 +229,7 @@ template _d_cmain()
     int _d_run_main2(char[][] args, object.size_t totalArgsLength, MainFunc mainFunc);
 
     // To start D main() it is need to call this function from external code
-    void _d_run_main(void* mtp)
+    void _d_run_main()
     {
         import core.stdc.stdlib: _Exit;
 
