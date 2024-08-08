@@ -109,6 +109,8 @@ install_subdir(
     install_dir: 'import/tagged'
 )
 
+extra_vers = external_tags == '' ? '' : '--d-version=GENERIC_IO'
+
 phobos_tgt = custom_target('phobos_tgt',
     output: phobos_tgts,
     depends: druntime_tgt,
@@ -119,7 +121,7 @@ phobos_tgt = custom_target('phobos_tgt',
         '@OUTDIR@', #copy target to this dir
         '-S', '@CURRENT_SOURCE_DIR@' / 'runtime',
         '-B', '@PRIVATE_DIR@',
-        '-D', 'D_EXTRA_FLAGS='+d_args_semi+';--d-version=GENERIC_IO;-conf='+ldc2_druntime_conf.full_path(),
+        '-D', 'D_EXTRA_FLAGS='+d_args_semi+';'+extra_vers+';-conf='+ldc2_druntime_conf.full_path(),
     ] + base_opts,
     install: true,
     install_dir: 'lib',
@@ -129,7 +131,7 @@ install_subdir('runtime/phobos', install_dir: 'import')
 
 etc_cfg_data = configuration_data(common_cfg_dict)
 etc_cfg_data.set('CONF_IMPORTS', '"-I%%ldcconfigpath%%/../import/src/", "-I%%ldcconfigpath%%/../import/tagged/", "-I%%ldcconfigpath%%/../import/phobos/"')
-etc_cfg_data.set('ADDITIONAL_DEFAULT_LDC_SWITCHES', '"-defaultlib=druntime-ldc,phobos2-ldc"')
+etc_cfg_data.set('ADDITIONAL_DEFAULT_LDC_SWITCHES', '"-defaultlib=druntime-ldc,phobos2-ldc", "'+extra_vers+'"')
 etc_cfg_data.set('CMAKE_BINARY_DIR', '.')
 etc_cfg_data.set('SHARED_LIBS_RPATH', 'lib/')
 
