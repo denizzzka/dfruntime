@@ -243,6 +243,7 @@ template _d_cmain()
     }
 }
 
+@(ldc.attributes.weak)
 private extern(C) void vApplicationGetIdleTaskMemory(os.StaticTask_t** tcb, os.StackType_t** stackBuffer, uint* stackSize)
 {
   __gshared static os.StaticTask_t idle_TCB;
