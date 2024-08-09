@@ -112,4 +112,10 @@ class Fiber : FiberBase
     }
 }
 
+version (RISCV32)
+package extern (C) void fiber_switchContext( void** oldp, void* newp ) nothrow @nogc
+{
+    assert(false, "FIXME: fiber_switchContext not implemented");
+}
+else
 package extern (C) void fiber_switchContext( void** oldp, void* newp ) nothrow @nogc;
