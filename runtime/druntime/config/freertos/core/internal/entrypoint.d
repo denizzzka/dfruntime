@@ -271,6 +271,9 @@ extern(C) void vApplicationTickHook(os.TaskHandle_t xTask, char* pcTaskName)
     //TODO: remove this
 }
 
+version (ARM)
+{
+
 /// ARM Cortex-M3 interrupts vector
 extern(C) __gshared InterruptsVector* interruptsVector = null;
 
@@ -290,4 +293,6 @@ struct InterruptsVector
     void* pend_sv;
     void* systick;
     void* irq;
+}
+
 }
