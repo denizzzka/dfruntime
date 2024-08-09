@@ -22,10 +22,33 @@ debug(PRINTF) import core.stdc.stdio : printf;
 extern(C) extern __gshared void* _data;
 extern(C) extern __gshared void* _ebss;
 
-extern(C) extern __gshared void* _tdata;
-extern(C) extern __gshared void* _tdata_size;
-extern(C) extern __gshared void* _tbss;
-extern(C) extern __gshared void* _tbss_size;
+version (ESP_IDF)
+{
+    pragma(mangle, "_thread_local_data_start")
+    extern(C) extern __gshared void* _tdata;
+    extern(C) extern __gshared void* _thread_local_data_end;
+
+    __gshared size_t _tdata_size;
+
+    pragma(mangle, "_thread_local_bss_start")
+    extern(C) extern __gshared void* _tbss;
+    extern(C) extern __gshared void*_thread_local_bss_end;
+
+    __gshared size_t _tbss_size;
+
+    shared static this()
+    {
+        _tdata_size = _thread_local_data_end - _tdata;
+        _tbss_size = _thread_local_bss_end - _tbss;
+    }
+}
+else
+{
+    extern(C) extern __gshared void* _tdata;
+    extern(C) extern __gshared void* _tdata_size;
+    extern(C) extern __gshared void* _tbss;
+    extern(C) extern __gshared void* _tbss_size;
+}
 
 struct TLSParams
 {

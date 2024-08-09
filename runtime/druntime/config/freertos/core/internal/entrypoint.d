@@ -139,8 +139,7 @@ void initMainStackSize()
     mainTaskProperties.taskStackSizeWords = 25 * 1024 / 4;
 }
 
-//TODO: remove
-version (ARM)
+version (ESP_IDF)
     version = NeedStartMainLoop;
 
 version (NeedStartMainLoop)
