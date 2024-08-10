@@ -140,15 +140,31 @@ in(stacksize % os.StackType_t.sizeof == 0)
     memset(currThread, 0x00, ll_ThreadData.sizeof);
     currThread.initialize();
 
-    currThread.tid = os.xTaskCreateStatic(
-        &lowlevelThread_entryPoint,
-        params.name,
-        wordsStackSize,
-        cast(void*) context, // pvParameters*
-        DefaultTaskPriority,
-        stackBuff,
-        tcb
-    );
+    version (ESP_IDF)
+    {
+        currThread.tid = xTaskCreateStaticPinnedToCore(
+            &lowlevelThread_entryPoint,
+            params.name,
+            wordsStackSize,
+            cast(void*) context, // pvParameters*
+            DefaultTaskPriority,
+            stackBuff,
+            tcb,
+            Thread.xCoreID
+        );
+    }
+    else
+    {
+        currThread.tid = os.xTaskCreateStatic(
+            &lowlevelThread_entryPoint,
+            params.name,
+            wordsStackSize,
+            cast(void*) context, // pvParameters*
+            DefaultTaskPriority,
+            stackBuff,
+            tcb
+        );
+    }
 
     // xTaskCreateStatic returns 0 if some error occured, ensure what this is ThreadID.init
     static assert(ThreadID.init is null);
@@ -478,6 +494,25 @@ class Thread : ThreadBase
         super.run();
     }
 
+    version (ESP_IDF)
+    {
+        private __gshared os.BaseType_t xCoreID = -1; // tskNO_AFFINITY
+
+        /**
+        Params:
+            id = specify the created task's core affinity. The valid values for core affinity are:
+                0, which pins the created task to Core 0
+                1, which pins the created task to Core 1
+                tskNO_AFFINITY, which allows the task to be run on both cores
+        */
+        void setNextCoreId(os.BaseType_t id)
+        {
+            import core.atomic: atomicStore;
+
+            atomicStore(xCoreID, id);
+        }
+    }
+
     final Thread start() nothrow
     {
         auto wasThreaded  = multiThreadedFlag;
@@ -502,15 +537,33 @@ class Thread : ThreadBase
             isRunning = true;
             scope(failure) isRunning = false;
 
-            m_addr = os.xTaskCreateStatic(
-                &thread_entryPoint,
-                cast(const(char*)) "D thread", //FIXME: fill name from m_name
-                wordsStackSize,
-                cast(void*) this, // pvParameters*
-                DefaultTaskPriority,
-                cast(os.StackType_t*) taskProperties.stackBuff,
-                &taskProperties.tcb
-            );
+            immutable name = "D thread"; //FIXME: fill name from m_name
+
+            version (ESP_IDF)
+            {
+                m_addr = xTaskCreateStaticPinnedToCore(
+                    &thread_entryPoint,
+                    cast(const(char*)) name,
+                    wordsStackSize,
+                    cast(void*) this, // pvParameters*
+                    DefaultTaskPriority,
+                    cast(os.StackType_t*) taskProperties.stackBuff,
+                    &taskProperties.tcb,
+                    xCoreID
+                );
+            }
+            else
+            {
+                m_addr = os.xTaskCreateStatic(
+                    &thread_entryPoint,
+                    cast(const(char*)) name,
+                    wordsStackSize,
+                    cast(void*) this, // pvParameters*
+                    DefaultTaskPriority,
+                    cast(os.StackType_t*) taskProperties.stackBuff,
+                    &taskProperties.tcb
+                );
+            }
 
             return this;
         }
@@ -652,3 +705,16 @@ extern(C) void __malloc_unlock()
 {
     memLock.unlock();
 }
+
+version (ESP_IDF)
+extern(C)
+os.TaskHandle_t xTaskCreateStaticPinnedToCore(
+    os.TaskFunction_t pxTaskCode,
+    const(const(char)*) pcName,
+    const uint ulStackDepth,
+    void* pvParameters,
+    os.UBaseType_t uxPriority,
+    os.StackType_t* pxStackBuffer,
+    os.xSTATIC_TCB* pxTaskBuffer,
+    const os.BaseType_t xCoreID
+) nothrow @nogc;
