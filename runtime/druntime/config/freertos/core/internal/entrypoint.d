@@ -139,10 +139,7 @@ void initMainStackSize()
     mainTaskProperties.taskStackSizeWords = 25 * 1024 / 4;
 }
 
-version (ESP_IDF)
-    version = NeedStartMainLoop;
-
-version (NeedStartMainLoop)
+version (FreeRTOS_CreateMainLoop)
 template _d_cmain()
 {
     extern(C):
