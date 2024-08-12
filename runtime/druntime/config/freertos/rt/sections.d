@@ -179,8 +179,6 @@ else version (RISCV32)
 import core.stdc.stdlib: aligned_alloc;
 import core.memory: GC;
 
-private enum TCB_size = 8; // FIXME: ARM EABI specific
-
 /***
  * Called once per thread; returns array of thread local storage ranges
  */
@@ -207,14 +205,7 @@ void[] initTLSRanges() nothrow @nogc
     // Init local bss by zeroes
     memset(tls + p.tdata_size, 0x00, p.tbss_size);
 
-    assert(false, "TODO: TCB-related stuff is from ARM, need to change");
-    freertos.vTaskSetThreadLocalStoragePointer(null, 0, tls - TCB_size /* ARM EABI specific offset */);
-
-    debug
-    {
-        void* tls_arm = read_tp_secondary();
-        assert(tls - tls_arm == TCB_size);
-    }
+    freertos.vTaskSetThreadLocalStoragePointer(null, 0, tls);
 
     // Register in GC
     //TODO: move this info into our own SectionGroup implementation?
