@@ -28,19 +28,9 @@ version (ESP_IDF)
     extern(C) extern __gshared void* _tdata;
     extern(C) extern __gshared void* _thread_local_data_end;
 
-    __gshared size_t _tdata_size;
-
     pragma(mangle, "_thread_local_bss_start")
     extern(C) extern __gshared void* _tbss;
     extern(C) extern __gshared void*_thread_local_bss_end;
-
-    __gshared size_t _tbss_size;
-
-    shared static this()
-    {
-        _tdata_size = _thread_local_data_end - _tdata;
-        _tbss_size = _thread_local_bss_end - _tbss;
-    }
 }
 else
 {
@@ -63,8 +53,18 @@ TLSParams getTLSParams() nothrow @nogc
 {
     auto tdata_start = cast(void*)&_tdata;
     auto tbss_start = cast(void*)&_tbss;
-    size_t tdata_size = cast(size_t)&_tdata_size;
-    size_t tbss_size = cast(size_t)&_tbss_size;
+
+    version (ESP_IDF)
+    {
+        size_t tdata_size = _thread_local_data_end - _tdata;
+        size_t tbss_size = _thread_local_bss_end - _tbss;
+    }
+    else
+    {
+        size_t tdata_size = cast(size_t)&_tdata_size;
+        size_t tbss_size = cast(size_t)&_tbss_size;
+    }
+
     size_t full_tls_size = tdata_size + tbss_size;
 
     assert(tbss_size > 1);
