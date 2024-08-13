@@ -262,7 +262,7 @@ endif()
 # druntime ASM parts
 set(DRUNTIME_ASM)
 if(NOT "${TARGET_SYSTEM}" MATCHES "Windows")
-    list(APPEND DRUNTIME_ASM ${RUNTIME_DIR}/src/core/threadasm.S ${RUNTIME_DIR}/src/ldc/eh_asm.S)
+    list(APPEND DRUNTIME_ASM ${RUNTIME_DIR}/src/core/threadasm.S ${RUNTIME_DIR}/src/core/thread/fiber/switch_context_riscv.S ${RUNTIME_DIR}/src/ldc/eh_asm.S)
 endif()
 
 # generate additional tags-based lists of files
