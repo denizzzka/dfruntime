@@ -22,23 +22,10 @@ debug(PRINTF) import core.stdc.stdio : printf;
 extern(C) extern __gshared void* _data;
 extern(C) extern __gshared void* _ebss;
 
-version (ESP_IDF)
-{
-    pragma(mangle, "_thread_local_data_start")
-    extern(C) extern __gshared void* _tdata;
-    extern(C) extern __gshared void* _thread_local_data_end;
-
-    pragma(mangle, "_thread_local_bss_start")
-    extern(C) extern __gshared void* _tbss;
-    extern(C) extern __gshared void*_thread_local_bss_end;
-}
-else
-{
-    extern(C) extern __gshared void* _tdata;
-    extern(C) extern __gshared void* _tdata_size;
-    extern(C) extern __gshared void* _tbss;
-    extern(C) extern __gshared void* _tbss_size;
-}
+extern(C) extern __gshared void* _tdata;
+extern(C) extern __gshared void* _tdata_size;
+extern(C) extern __gshared void* _tbss;
+extern(C) extern __gshared void* _tbss_size;
 
 struct TLSParams
 {
@@ -53,18 +40,8 @@ TLSParams getTLSParams() nothrow @nogc
 {
     auto tdata_start = cast(void*)&_tdata;
     auto tbss_start = cast(void*)&_tbss;
-
-    version (ESP_IDF)
-    {
-        size_t tdata_size = _thread_local_data_end - _tdata;
-        size_t tbss_size = _thread_local_bss_end - _tbss;
-    }
-    else
-    {
-        size_t tdata_size = cast(size_t)&_tdata_size;
-        size_t tbss_size = cast(size_t)&_tbss_size;
-    }
-
+    size_t tdata_size = cast(size_t)&_tdata_size;
+    size_t tbss_size = cast(size_t)&_tbss_size;
     size_t full_tls_size = tdata_size + tbss_size;
 
     assert(tbss_size > 1);
