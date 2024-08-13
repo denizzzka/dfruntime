@@ -243,9 +243,13 @@ private ll_ThreadData* getLLThreadNotThreadSafe(in ThreadID tid) nothrow @nogc
 
 @nogc:
 
+//TODO: move to threadbase?
 /// Init threads module
 extern (C) void thread_init() @nogc
 {
+    import core.internal.entrypoint: initMainStack;
+
+    initMainStack();
     initLowlevelThreads();
     ThreadBase.initLocks();
 

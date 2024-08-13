@@ -128,15 +128,16 @@ struct MainTaskProperties
 
 __gshared static MainTaskProperties mainTaskProperties;
 
-// Init FreeRTOS main task stack size:
-import ldc.attributes;
-
-@section(".init_array")
-immutable initMainStackSize_ptr = &initMainStackSize;
-
-void initMainStackSize()
+/// Init FreeRTOS main task stack
+void initMainStack()
 {
+    import core.internal.traits: externDFunc;
+    alias getStackTop = externDFunc!("core.thread.common.getStackTop", void* function() nothrow @nogc);
+
     mainTaskProperties.taskStackSizeWords = 25 * 1024 / 4;
+
+    // stack wasn't used yet, so assumed what we on top
+    mainTaskProperties.stackBottom = getStackTop();
 }
 
 version (FreeRTOS_CreateMainLoop)
@@ -161,12 +162,6 @@ template _d_cmain()
     void _d_run_main(void* mtp)
     {
         import core.stdc.stdlib: _Exit;
-        import core.internal.traits: externDFunc;
-
-        alias getStackTop = externDFunc!("core.thread.common.getStackTop", void* function() nothrow @nogc);
-
-        // stack wasn't used yet, so assumed what we on top
-        (cast(MainTaskProperties*) mtp).stackBottom = getStackTop();
 
         __gshared int main_ret = 7; // _d_run_main2 uncatched exception occured
         scope(exit)
@@ -238,6 +233,8 @@ template _d_cmain()
         main_ret = _d_run_main2(null, 0, &_Dmain);
     }
 }
+
+static import ldc.attributes;
 
 @(ldc.attributes.weak)
 private extern(C) void vApplicationGetIdleTaskMemory(os.StaticTask_t** tcb, os.StackType_t** stackBuffer, uint* stackSize)
