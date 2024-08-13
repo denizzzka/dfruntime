@@ -24,6 +24,11 @@ extern(C) void fiber_entryPoint() nothrow;
 static assert(isStackGrowingDown);
 
 version (ARM)
+    version = InitStackWorks;
+else version (RISCV32)
+    version = InitStackWorks;
+
+version (InitStackWorks)
 void initStack(StackContext* m_ctxt) nothrow @nogc
 {
     void* pstack = m_ctxt.tstack;
@@ -47,7 +52,7 @@ void initStack(StackContext* m_ctxt) nothrow @nogc
     pstack += int.sizeof;
 }
 
-version (ARM)
+version (all) //TODO: Why this code is not generalized?
 class Fiber : FiberBase
 {
     enum defaultStackPages = 4;
@@ -107,4 +112,10 @@ class Fiber : FiberBase
     }
 }
 
+version (RISCV32)
+package extern (C) void fiber_switchContext( void** oldp, void* newp ) nothrow @nogc
+{
+    assert(false, "FIXME: fiber_switchContext not implemented");
+}
+else
 package extern (C) void fiber_switchContext( void** oldp, void* newp ) nothrow @nogc;

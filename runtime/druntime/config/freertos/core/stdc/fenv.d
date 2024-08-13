@@ -11,10 +11,10 @@ struct fenv_t
 import core.stdc.config: c_ulong;
 alias fexcept_t = c_ulong;
 
+enum FE_DFL_ENV = cast(fenv_t*)(-1);
+
 version (ARM)
 {
-    enum FE_DFL_ENV = cast(fenv_t*)(-1);
-
     enum FE_INEXACT =   0x0010;
     enum FE_UNDERFLOW = 0x0008;
     enum FE_OVERFLOW =  0x0004;
@@ -35,6 +35,19 @@ version (ARM)
         enum FE_UPWARD =        0x0002;
         enum FE_TOWARDZERO =    0x0003;
     }
+}
+else version (RISCV32)
+{
+    enum FE_INEXACT =   0x01;
+    enum FE_UNDERFLOW = 0x02;
+    enum FE_OVERFLOW =  0x04;
+    enum FE_DIVBYZERO = 0x08;
+    enum FE_INVALID =   0x10;
+
+    enum FE_TONEAREST =     0x0;
+    enum FE_TOWARDZERO =    0x1;
+    enum FE_DOWNWARD =      0x2;
+    enum FE_UPWARD =        0x3;
 }
 
 enum FE_ALL_EXCEPT = FE_INEXACT

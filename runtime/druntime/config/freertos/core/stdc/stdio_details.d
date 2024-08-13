@@ -25,9 +25,19 @@ enum
 ///
 struct FILE;
 
-extern __gshared FILE* stdin;
-extern __gshared FILE* stdout;
-extern __gshared FILE* stderr;
+//FIXME: Newlib is supported in official druntime, create tag for picolibc?
+version (CRuntime_Newlib)
+{
+    __gshared FILE* stdin;
+    __gshared FILE* stdout;
+    __gshared FILE* stderr;
+}
+else // picolibc
+{
+    extern __gshared FILE* stdin;
+    extern __gshared FILE* stdout;
+    extern __gshared FILE* stderr;
+}
 
 enum
 {

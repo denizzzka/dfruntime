@@ -129,9 +129,14 @@ phobos_tgt = custom_target('phobos_tgt',
 
 install_subdir('runtime/phobos', install_dir: 'import')
 
+d_args_cfg = ''
+foreach e: meson.get_external_property('d_args_external', [])
+    d_args_cfg += ' "'+e+'",'
+endforeach
+
 etc_cfg_data = configuration_data(common_cfg_dict)
 etc_cfg_data.set('CONF_IMPORTS', '"-I%%ldcconfigpath%%/../import/src/", "-I%%ldcconfigpath%%/../import/tagged/", "-I%%ldcconfigpath%%/../import/phobos/"')
-etc_cfg_data.set('ADDITIONAL_DEFAULT_LDC_SWITCHES', '"-defaultlib=druntime-ldc,phobos2-ldc", "'+extra_vers+'"')
+etc_cfg_data.set('ADDITIONAL_DEFAULT_LDC_SWITCHES', '"-defaultlib=druntime-ldc,phobos2-ldc",'+d_args_cfg+' "'+extra_vers+'"')
 etc_cfg_data.set('CMAKE_BINARY_DIR', '.')
 etc_cfg_data.set('SHARED_LIBS_RPATH', 'lib/')
 

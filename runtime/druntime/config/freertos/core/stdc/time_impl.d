@@ -28,6 +28,11 @@ struct timeval {
     long    tv_usec;    /* and microseconds */
 }
 
+version (ESP_IDF)
+{
+    // newlibc
+}
+else
 extern(C) int gettimeofday(timeval* tv, void*) // timezone_t* is normally void*
 {
     tv.tv_sec = 123;

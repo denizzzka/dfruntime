@@ -131,7 +131,7 @@ else version (AAPCS64)
 {
     alias va_list = core.internal.vararg.aarch64.va_list;
 }
-else version (RISCV_Any)
+else version (RISCV64)
 {
     // The va_list type is void*, according to RISCV Calling Convention
     // https://github.com/riscv-non-isa/riscv-elf-psabi-doc/blob/master/riscv-cc.adoc
