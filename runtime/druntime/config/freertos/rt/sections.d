@@ -19,13 +19,39 @@ import freertos = internal.binding;
 debug(PRINTF) import core.stdc.stdio : printf;
 
 // These values described in linker script
-extern(C) extern __gshared void* _data;
-extern(C) extern __gshared void* _ebss;
+//TODO: swap names like _edata to _data_end
+//TODO: replace void* by char or some private struct* to avoid meaning it as void ptr 
+version (ESP_IDF)
+ {
+    pragma(mangle, "_data_start")
+    extern(C) extern __gshared void* _data;
 
-extern(C) extern __gshared void* _tdata;
-extern(C) extern __gshared void* _tdata_size;
-extern(C) extern __gshared void* _tbss;
-extern(C) extern __gshared void* _tbss_size;
+    pragma(mangle, "_data_end")
+    extern(C) extern __gshared void* _edata;
+
+    pragma(mangle, "_bss_start")
+    extern(C) extern __gshared void* _bss;
+
+    pragma(mangle, "_bss_end")
+    extern(C) extern __gshared void* _ebss;
+
+    extern(C) extern __gshared char
+        _thread_local_data_start,
+        _thread_local_data_end,
+        _thread_local_bss_start,
+        _thread_local_bss_end;
+}
+else
+{
+    extern(C) extern __gshared void* _data;
+    //~ extern(C) extern __gshared void* _edata;
+    //~ extern(C) extern __gshared void* _bss;
+    extern(C) extern __gshared void* _ebss;
+    extern(C) extern __gshared void* _tdata;
+    extern(C) extern __gshared void* _tdata_size;
+    extern(C) extern __gshared void* _tbss;
+    extern(C) extern __gshared void* _tbss_size;
+}
 
 struct TLSParams
 {
@@ -36,6 +62,7 @@ struct TLSParams
     size_t full_tls_size;
 }
 
+version (ESP_IDF) {} else
 TLSParams getTLSParams() nothrow @nogc
 {
     auto tdata_start = cast(void*)&_tdata;
@@ -60,10 +87,28 @@ void fillGlobalSectionGroup(ref SectionGroup gsg) nothrow @nogc
     debug(PRINTF) printf(__FUNCTION__~" called\n");
 
     // Writeable (non-TLS) data sections covered by GC
-    auto data_start = cast(void*)&_data;
-    ptrdiff_t size = cast(void*)&_ebss - data_start;
+    version (ESP_IDF)
+    {
+        {
+            auto data_start = cast(void*)&_data;
+            ptrdiff_t size = cast(void*)&_edata - data_start;
+            gsg._gcRanges.insertBack(data_start[0 .. size]);
+        }
 
-    gsg._gcRanges.insertBack(data_start[0 .. size]);
+        {
+            auto bss_start = cast(void*)&_bss;
+            ptrdiff_t size = cast(void*)&_ebss - bss_start;
+            gsg._gcRanges.insertBack(bss_start[0 .. size]);
+        }
+    }
+    else
+    {
+        //FIXME: split _data and _bss and remove version (ESP_IDF) above
+        auto data_start = cast(void*)&_data;
+        ptrdiff_t size = cast(void*)&_ebss - data_start;
+
+        gsg._gcRanges.insertBack(data_start[0 .. size]);
+    }
 
     debug(PRINTF) printf(__FUNCTION__~" done\n");
 }
@@ -81,7 +126,12 @@ void finiTLSRanges(void[] rng) nothrow @nogc
 
 package void* read_tp_secondary() nothrow @nogc
 {
-    return freertos.pvTaskGetThreadLocalStoragePointer(null, 0);
+    version (ESP_IDF)
+        enum idx = 1; // index 0 is reserved for ESP-IDF internal uses
+    else
+        enum idx = 0;
+
+    return freertos.pvTaskGetThreadLocalStoragePointer(null, idx);
 }
 
 void ctorsDtorsWarning() nothrow
@@ -95,11 +145,11 @@ void ctorsDtorsWarning() nothrow
  */
 }
 
+import core.memory: GC;
+import core.stdc.stdlib: aligned_alloc;
+
 version(ARM)
 {
-
-import core.stdc.stdlib: aligned_alloc;
-import core.memory: GC;
 
 private enum TCB_size = 8; // ARM EABI specific
 
@@ -150,45 +200,36 @@ extern(C) extern void* __aeabi_read_tp() nothrow @nogc
 }
 
 }
-else version (RISCV32)
+else version (ESP_IDF)
 {
 
-import core.stdc.stdlib: aligned_alloc;
-import core.memory: GC;
-
-/***
- * Called once per thread; returns array of thread local storage ranges
- */
 void[] initTLSRanges() nothrow @nogc
 {
-    debug(PRINTF) printf("external initTLSRanges called\n");
+    assert(read_tp_secondary() is null, "TLS already initialized?");
 
-    debug
-    {
-        assert(read_tp_secondary() is null, "TLS already initialized?");
-    }
-
-    auto p = getTLSParams();
+    // Calculate TLS area size and round up to multiple of 16 bytes.
+    const tls_data_size = &_thread_local_data_end - &_thread_local_data_start;
+    const tls_bss_size = &_thread_local_bss_end - &_thread_local_bss_start;
+    const tls_area_size = tls_data_size + tls_bss_size;
 
     // TLS
     import core.stdc.string: memcpy, memset;
 
-    void* tls = aligned_alloc(8, p.full_tls_size);
+    void* tls = aligned_alloc(16, tls_area_size);
     assert(tls, "cannot allocate TLS block");
 
     // Copying TLS data
-    memcpy(tls, p.tdata_start, p.tdata_size);
+    memcpy(tls, &_thread_local_data_start, tls_data_size);
 
     // Init local bss by zeroes
-    memset(tls + p.tdata_size, 0x00, p.tbss_size);
+    memset(tls + tls_data_size, 0x00, tls_bss_size);
 
-    freertos.vTaskSetThreadLocalStoragePointer(null, 0, tls);
+    freertos.vTaskSetThreadLocalStoragePointer(null, 1, tls);
 
     // Register in GC
-    //TODO: move this info into our own SectionGroup implementation?
-    GC.addRange(tls, p.full_tls_size);
+    GC.addRange(tls, tls_area_size);
 
-    return tls[0 .. p.full_tls_size];
+    return tls[0 .. tls_area_size];
 }
 
 }
