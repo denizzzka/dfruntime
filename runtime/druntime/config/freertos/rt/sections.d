@@ -20,7 +20,6 @@ debug(PRINTF) import core.stdc.stdio : printf;
 
 // These values described in linker script
 //TODO: swap names like _edata to _data_end
-//TODO: replace void* by char or some private struct* to avoid meaning it as void ptr 
 version (ESP_IDF)
  {
     pragma(mangle, "_data_start")
@@ -35,7 +34,9 @@ version (ESP_IDF)
     pragma(mangle, "_bss_end")
     extern(C) extern __gshared void* _ebss;
 
-    extern(C) extern __gshared char
+    private struct SecHdr { char unused; }
+
+    extern(C) extern __gshared SecHdr
         _thread_local_data_start,
         _thread_local_data_end,
         _thread_local_bss_start,
@@ -207,10 +208,19 @@ void[] initTLSRanges() nothrow @nogc
 {
     assert(read_tp_secondary() is null, "TLS already initialized?");
 
+    assert(&_thread_local_data_start < &_thread_local_data_end);
+    assert(&_thread_local_bss_start < &_thread_local_bss_end);
+
     // Calculate TLS area size and round up to multiple of 16 bytes.
     const tls_data_size = &_thread_local_data_end - &_thread_local_data_start;
     const tls_bss_size = &_thread_local_bss_end - &_thread_local_bss_start;
-    const tls_area_size = tls_data_size + tls_bss_size;
+
+    // TODO: round up tls_area_size to multiple of 16 bytes
+    const tls_area_size = tls_data_size + tls_bss_size + 16;
+
+    assert(tls_data_size >= 0);
+    assert(tls_bss_size >= 0);
+    assert(tls_area_size >= 0);
 
     // TLS
     import core.stdc.string: memcpy, memset;
