@@ -208,8 +208,8 @@ void[] initTLSRanges() nothrow @nogc
 {
     assert(read_tp_secondary() is null, "TLS already initialized?");
 
-    assert(&_thread_local_data_start < &_thread_local_data_end);
-    assert(&_thread_local_bss_start < &_thread_local_bss_end);
+    assert(&_thread_local_data_start <= &_thread_local_data_end);
+    assert(&_thread_local_bss_start <= &_thread_local_bss_end);
 
     // Calculate TLS area size and round up to multiple of 16 bytes.
     const tls_data_size = &_thread_local_data_end - &_thread_local_data_start;
