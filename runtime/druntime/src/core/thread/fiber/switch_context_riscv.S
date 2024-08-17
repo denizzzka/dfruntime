@@ -20,7 +20,7 @@
  * x3       gp      : global pointer (variables are ‘relaxed’ and accessed via a relative imm offset from the gp)
  * x4       tp      : thread pointer
  * x5-x7    t0-t2   : temporary/scratch registers
- * x8       fp      : callee-saved register 0 / frame pointer
+ * x8       s0/fp   : callee-saved register 0 AKA frame pointer
  * x9       s1      : callee-saved register 1
  * x10-x17  a0-a7   : function arguments
  * x18-x27  s2-s11  : callee-saved registers
@@ -28,6 +28,7 @@
  */
 .text
 .globl fiber_switchContext
+.type  fiber_switchContext, @function
 fiber_switchContext:
     // Reserve space on the stack to store registers
     addi sp, sp, -(13 * 4) // num registers to store * 4 byte register size
