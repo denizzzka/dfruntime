@@ -500,7 +500,7 @@ class Thread : ThreadBase
 
     version (ESP_IDF)
     {
-        private __gshared os.BaseType_t xCoreID = -1; // tskNO_AFFINITY
+        private __gshared os.BaseType_t xCoreID = os.BaseType_t.max; // tskNO_AFFINITY
 
         /**
         Params:
