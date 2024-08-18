@@ -129,9 +129,17 @@ in(stacksize % os.StackType_t.sizeof == 0)
     if(stacksize == 0)
         stacksize = DefaultStackSize;
 
-    auto wordsStackSize = stacksize / os.StackType_t.sizeof;
-    if(wordsStackSize < os.configMINIMAL_STACK_SIZE)
-        return ThreadID.init;
+    version (ESP_IDF)
+    {
+        if(stacksize < os.configMINIMAL_STACK_SIZE)
+            return ThreadID.init;
+    }
+    else
+    {
+        auto wordsStackSize = stacksize / os.StackType_t.sizeof;
+        if(wordsStackSize < os.configMINIMAL_STACK_SIZE)
+            return ThreadID.init;
+    }
 
     auto stackBuff = cast(os.StackType_t*) aligned_alloc(os.StackType_t.sizeof, stacksize);
     auto tcb = cast(os.StaticTask_t*) malloc(os.StaticTask_t.sizeof);
@@ -145,7 +153,7 @@ in(stacksize % os.StackType_t.sizeof == 0)
         currThread.tid = xTaskCreateStaticPinnedToCore(
             &lowlevelThread_entryPoint,
             params.name,
-            wordsStackSize,
+            stacksize,
             cast(void*) context, // pvParameters*
             DefaultTaskPriority,
             stackBuff,
@@ -535,8 +543,15 @@ class Thread : ThreadBase
             pAboutToStart = cast(ThreadBase*)realloc(pAboutToStart, Thread.sizeof * nAboutToStart);
             pAboutToStart[nAboutToStart - 1] = this;
 
-            auto wordsStackSize = m_sz / os.StackType_t.sizeof;
-            assert(wordsStackSize >= os.configMINIMAL_STACK_SIZE);
+            version (ESP_IDF)
+            {
+                assert(m_sz >= os.configMINIMAL_STACK_SIZE);
+            }
+            else
+            {
+                auto wordsStackSize = m_sz / os.StackType_t.sizeof;
+                assert(wordsStackSize >= os.configMINIMAL_STACK_SIZE);
+            }
 
             isRunning = true;
             scope(failure) isRunning = false;
@@ -548,7 +563,7 @@ class Thread : ThreadBase
                 m_addr = xTaskCreateStaticPinnedToCore(
                     &thread_entryPoint,
                     cast(const(char*)) name,
-                    wordsStackSize,
+                    m_sz,
                     cast(void*) this, // pvParameters*
                     DefaultTaskPriority,
                     cast(os.StackType_t*) taskProperties.stackBuff,
