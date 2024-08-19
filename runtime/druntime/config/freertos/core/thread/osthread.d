@@ -477,15 +477,18 @@ class Thread : ThreadBase
         assert(m_sz <= ushort.max * size_t.sizeof, "FreeRTOS stack size limit");
         assert(m_sz % os.StackType_t.sizeof == 0, "Stack size must be multiple of word");
 
-        taskProperties.stackBuff = (() @trusted => aligned_alloc(os.StackType_t.sizeof, m_sz))();
-        if(!taskProperties.stackBuff)
-            onOutOfMemoryError();
+        () @trusted
+        {
+            taskProperties.stackBuff = aligned_alloc(os.StackType_t.sizeof, m_sz);
+            if(taskProperties.stackBuff is null)
+                onOutOfMemoryError();
 
-        taskProperties.tcb = (() @trusted => alloc(os.StaticTask_t.sizeof))();
-        if(!taskProperties.tcb)
-            onOutOfMemoryError();
+            taskProperties.tcb = cast(os.StaticTask_t*) malloc(os.StaticTask_t.sizeof);
+            if(taskProperties.tcb is null)
+                onOutOfMemoryError();
 
-        m_main.bstack = (() @trusted => taskProperties.stackBuff + m_sz - 1)();
+            m_main.bstack = taskProperties.stackBuff + m_sz - 1;
+        }();
     }
 
     private void printTcbCreated(string file, size_t line) @trusted nothrow
