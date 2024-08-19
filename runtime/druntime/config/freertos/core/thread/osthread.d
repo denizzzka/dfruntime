@@ -27,7 +27,7 @@ enum DefaultStackSize = 2048 * os.StackType_t.sizeof;
 
 private struct TaskProperties
 {
-    os.StaticTask_t tcb;
+    os.StaticTask_t* tcb;
     EventAwaiter joinEvent;
     void* stackBuff;
 }
@@ -459,7 +459,10 @@ class Thread : ThreadBase
     ~this() nothrow @nogc
     {
         if(taskProperties.stackBuff) // not main thread
+        {
             free(taskProperties.stackBuff);
+            free(taskProperties.tcb);
+        }
 
         destructBeforeDtor();
     }
@@ -476,6 +479,10 @@ class Thread : ThreadBase
 
         taskProperties.stackBuff = (() @trusted => aligned_alloc(os.StackType_t.sizeof, m_sz))();
         if(!taskProperties.stackBuff)
+            onOutOfMemoryError();
+
+        taskProperties.tcb = (() @trusted => alloc(os.StaticTask_t.sizeof))();
+        if(!taskProperties.tcb)
             onOutOfMemoryError();
 
         m_main.bstack = (() @trusted => taskProperties.stackBuff + m_sz - 1)();
@@ -567,7 +574,7 @@ class Thread : ThreadBase
                     cast(void*) this, // pvParameters*
                     DefaultTaskPriority,
                     cast(os.StackType_t*) taskProperties.stackBuff,
-                    &(taskProperties.tcb),
+                    taskProperties.tcb,
                     xCoreID
                 );
             }
@@ -580,7 +587,7 @@ class Thread : ThreadBase
                     cast(void*) this, // pvParameters*
                     DefaultTaskPriority,
                     cast(os.StackType_t*) taskProperties.stackBuff,
-                    &(taskProperties.tcb)
+                    taskProperties.tcb
                 );
             }
 
