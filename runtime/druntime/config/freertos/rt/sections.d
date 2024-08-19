@@ -21,7 +21,7 @@ debug(PRINTF) import core.stdc.stdio : printf;
 // These values described in linker script
 //TODO: swap names like _edata to _data_end
 version (ESP_IDF)
- {
+{
     pragma(mangle, "_data_start")
     extern(C) extern __gshared void* _data;
 
