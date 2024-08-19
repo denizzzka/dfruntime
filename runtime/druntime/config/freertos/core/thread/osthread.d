@@ -567,7 +567,7 @@ class Thread : ThreadBase
                     cast(void*) this, // pvParameters*
                     DefaultTaskPriority,
                     cast(os.StackType_t*) taskProperties.stackBuff,
-                    &taskProperties.tcb,
+                    &(taskProperties.tcb),
                     xCoreID
                 );
             }
@@ -580,7 +580,7 @@ class Thread : ThreadBase
                     cast(void*) this, // pvParameters*
                     DefaultTaskPriority,
                     cast(os.StackType_t*) taskProperties.stackBuff,
-                    &taskProperties.tcb
+                    &(taskProperties.tcb)
                 );
             }
 
@@ -734,6 +734,6 @@ os.TaskHandle_t xTaskCreateStaticPinnedToCore(
     void* pvParameters,
     os.UBaseType_t uxPriority,
     os.StackType_t* pxStackBuffer,
-    os.xSTATIC_TCB* pxTaskBuffer,
+    os.StaticTask_t* pxTaskBuffer,
     const os.BaseType_t xCoreID
 ) nothrow @nogc;
