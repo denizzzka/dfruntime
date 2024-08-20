@@ -291,6 +291,12 @@ extern(C)
         uint[1] ulDummy18;
         ubyte[1] ucDummy19;
         ubyte uxDummy20;
+
+        version (ESP_IDF)
+        {
+            //FIXME: hack to support different FreeRTOS configurations
+            private ubyte[256] additional_unused_space;
+        }
     }
     alias StaticQueue_t = xSTATIC_QUEUE;
     struct xSTATIC_QUEUE
