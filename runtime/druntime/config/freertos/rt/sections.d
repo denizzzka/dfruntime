@@ -127,12 +127,7 @@ void finiTLSRanges(void[] rng) nothrow @nogc
 
 package void* read_tp_secondary() nothrow @nogc
 {
-    version (ESP_IDF)
-        enum idx = 1; // index 0 is reserved for ESP-IDF internal uses
-    else
-        enum idx = 0;
-
-    return freertos.pvTaskGetThreadLocalStoragePointer(null, idx);
+    return freertos.pvTaskGetThreadLocalStoragePointer(null, 0);
 }
 
 void ctorsDtorsWarning() nothrow

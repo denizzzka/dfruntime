@@ -458,13 +458,12 @@ class Thread : ThreadBase
 
     ~this() nothrow @nogc
     {
+        destructBeforeDtor();
+
         if(taskProperties.stackBuff) // not main thread
         {
             free(taskProperties.stackBuff);
-            free(taskProperties.tcb);
         }
-
-        destructBeforeDtor();
     }
 
     private void initTaskProperties() @safe nothrow
