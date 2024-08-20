@@ -234,7 +234,7 @@ void[] initTLSRanges() nothrow @nogc
     // Init local bss by zeroes
     memset(tls + tls_data_size, 0x00, tls_bss_size);
 
-    freertos.vTaskSetThreadLocalStoragePointer(null, 1, tls);
+    freertos.vTaskSetThreadLocalStoragePointer(null, 0, tls);
 
     // Register in GC
     GC.addRange(tls, tls_area_size);
