@@ -16,7 +16,7 @@ All builds will be done using [Meson build system](https://mesonbuild.com/) beca
 First step is to make sure that nothing is broken and everything works under usual Linux.
 Build druntime for Linux:
 ```
-> git clone --recurse-submodules https://github.com/denizzzka/dfruntime.git
+> git clone --branch=dfruntime --recurse-submodules https://github.com/denizzzka/dfruntime.git
 > cd dfruntime/
 > meson setup -Dbuildtype=release --prefix=$(pwd)/install_linux_release/ build_linux_release
 > ninja -C build_linux_release/ libdruntime-ldc-shared.so libphobos2-ldc-shared.so install
