@@ -764,6 +764,9 @@ void registerPredefinedTargetVersions() {
     VersionCondition::addPredefinedGlobalIdent("LoongArch64");
     registerPredefinedFloatABI("LoongArch_SoftFloat", "LoongArch_HardFloat");
     break;
+  case llvm::Triple::xtensa:
+    VersionCondition::addPredefinedGlobalIdent("Xtensa");
+    break;
 #endif // LDC_LLVM_VER >= 1600
   default:
     warning(Loc(), "unknown target CPU architecture: %s",
@@ -830,17 +833,20 @@ void registerPredefinedTargetVersions() {
     if (triple.getEnvironment() == llvm::Triple::Android) {
       VersionCondition::addPredefinedGlobalIdent("Android");
       VersionCondition::addPredefinedGlobalIdent("CRuntime_Bionic");
-      VersionCondition::addPredefinedGlobalIdent("CppRuntime_Clang");
+      VersionCondition::addPredefinedGlobalIdent("CppRuntime_LLVM");
+      VersionCondition::addPredefinedGlobalIdent("CppRuntime_Clang"); // legacy
     } else if (triple.isMusl()) {
       VersionCondition::addPredefinedGlobalIdent("CRuntime_Musl");
-      VersionCondition::addPredefinedGlobalIdent("CppRuntime_Gcc");
+      VersionCondition::addPredefinedGlobalIdent("CppRuntime_GNU");
+      VersionCondition::addPredefinedGlobalIdent("CppRuntime_Gcc"); // legacy
       // use libunwind for backtraces
       VersionCondition::addPredefinedGlobalIdent("DRuntime_Use_Libunwind");
     } else if (global.params.isUClibcEnvironment) {
       VersionCondition::addPredefinedGlobalIdent("CRuntime_UClibc");
     } else {
       VersionCondition::addPredefinedGlobalIdent("CRuntime_Glibc");
-      VersionCondition::addPredefinedGlobalIdent("CppRuntime_Gcc");
+      VersionCondition::addPredefinedGlobalIdent("CppRuntime_GNU");
+      VersionCondition::addPredefinedGlobalIdent("CppRuntime_Gcc"); // legacy
     }
     break;
   case llvm::Triple::Haiku:
@@ -853,7 +859,8 @@ void registerPredefinedTargetVersions() {
     VersionCondition::addPredefinedGlobalIdent(
         "darwin"); // For backwards compatibility.
     VersionCondition::addPredefinedGlobalIdent("Posix");
-    VersionCondition::addPredefinedGlobalIdent("CppRuntime_Clang");
+    VersionCondition::addPredefinedGlobalIdent("CppRuntime_LLVM");
+    VersionCondition::addPredefinedGlobalIdent("CppRuntime_Clang"); // legacy
     break;
   case llvm::Triple::FreeBSD:
     VersionCondition::addPredefinedGlobalIdent("FreeBSD");
@@ -864,7 +871,8 @@ void registerPredefinedTargetVersions() {
       warning(Loc(), "FreeBSD major version not specified in target triple");
     }
     VersionCondition::addPredefinedGlobalIdent("Posix");
-    VersionCondition::addPredefinedGlobalIdent("CppRuntime_Clang");
+    VersionCondition::addPredefinedGlobalIdent("CppRuntime_LLVM");
+    VersionCondition::addPredefinedGlobalIdent("CppRuntime_Clang"); // legacy
     break;
   case llvm::Triple::Solaris:
     VersionCondition::addPredefinedGlobalIdent("Solaris");
@@ -874,7 +882,8 @@ void registerPredefinedTargetVersions() {
   case llvm::Triple::DragonFly:
     VersionCondition::addPredefinedGlobalIdent("DragonFlyBSD");
     VersionCondition::addPredefinedGlobalIdent("Posix");
-    VersionCondition::addPredefinedGlobalIdent("CppRuntime_Gcc");
+    VersionCondition::addPredefinedGlobalIdent("CppRuntime_GNU");
+    VersionCondition::addPredefinedGlobalIdent("CppRuntime_Gcc"); // legacy
     break;
   case llvm::Triple::NetBSD:
     VersionCondition::addPredefinedGlobalIdent("NetBSD");
@@ -883,7 +892,8 @@ void registerPredefinedTargetVersions() {
   case llvm::Triple::OpenBSD:
     VersionCondition::addPredefinedGlobalIdent("OpenBSD");
     VersionCondition::addPredefinedGlobalIdent("Posix");
-    VersionCondition::addPredefinedGlobalIdent("CppRuntime_Gcc");
+    VersionCondition::addPredefinedGlobalIdent("CppRuntime_GNU");
+    VersionCondition::addPredefinedGlobalIdent("CppRuntime_Gcc"); // legacy
     break;
   case llvm::Triple::AIX:
     VersionCondition::addPredefinedGlobalIdent("AIX");
@@ -892,17 +902,20 @@ void registerPredefinedTargetVersions() {
   case llvm::Triple::IOS:
     VersionCondition::addPredefinedGlobalIdent("iOS");
     VersionCondition::addPredefinedGlobalIdent("Posix");
-    VersionCondition::addPredefinedGlobalIdent("CppRuntime_Clang");
+    VersionCondition::addPredefinedGlobalIdent("CppRuntime_LLVM");
+    VersionCondition::addPredefinedGlobalIdent("CppRuntime_Clang"); // legacy
     break;
   case llvm::Triple::TvOS:
     VersionCondition::addPredefinedGlobalIdent("TVOS");
     VersionCondition::addPredefinedGlobalIdent("Posix");
-    VersionCondition::addPredefinedGlobalIdent("CppRuntime_Clang");
+    VersionCondition::addPredefinedGlobalIdent("CppRuntime_LLVM");
+    VersionCondition::addPredefinedGlobalIdent("CppRuntime_Clang"); // legacy
     break;
   case llvm::Triple::WatchOS:
     VersionCondition::addPredefinedGlobalIdent("WatchOS");
     VersionCondition::addPredefinedGlobalIdent("Posix");
-    VersionCondition::addPredefinedGlobalIdent("CppRuntime_Clang");
+    VersionCondition::addPredefinedGlobalIdent("CppRuntime_LLVM");
+    VersionCondition::addPredefinedGlobalIdent("CppRuntime_Clang"); // legacy
     break;
   case llvm::Triple::WASI:
     VersionCondition::addPredefinedGlobalIdent("WASI");
@@ -910,6 +923,12 @@ void registerPredefinedTargetVersions() {
     break;
   case llvm::Triple::Emscripten:
     VersionCondition::addPredefinedGlobalIdent("Emscripten");
+    // Emscripten uses musl and libc++, so mimic a musl Linux platform:
+    VersionCondition::addPredefinedGlobalIdent("linux");
+    VersionCondition::addPredefinedGlobalIdent("Posix");
+    VersionCondition::addPredefinedGlobalIdent("CRuntime_Musl");
+    VersionCondition::addPredefinedGlobalIdent("CppRuntime_LLVM");
+    VersionCondition::addPredefinedGlobalIdent("CppRuntime_Clang"); // legacy
     break;
   default:
     if (triple.getEnvironment() == llvm::Triple::Android) {

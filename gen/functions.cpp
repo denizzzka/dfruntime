@@ -140,16 +140,31 @@ llvm::FunctionType *DtoFunctionType(Type *type, IrFuncTy &irFty, Type *thistype,
   }
 
   bool hasObjCSelector = false;
-  if (fd && fd->_linkage == LINK::objc && thistype) {
+  if (fd && fd->_linkage == LINK::objc) {
+    auto ftype = (TypeFunction*)fd->type;
+
     if (fd->objc.selector) {
       hasObjCSelector = true;
     } else if (fd->parent->isClassDeclaration()) {
-      error(fd->loc, "%s `%s` is missing Objective-C `@selector`", fd->kind(),
-            fd->toPrettyChars());
+      if(fd->isFinal() || ftype->isproperty()) {
+
+        // HACK: Ugly hack, but final functions for some reason don't actually declare a selector.
+        // However, this does make it more flexible.
+        // Also this will automatically generate selectors for @property declared
+        // functions, which the DIP specifies.
+        // Final function selector gen should be fixed, however.
+        fd->objc.selector = ObjcSelector::create(fd);
+        hasObjCSelector = true;
+      } else {
+        error(fd->loc, "%s `%s` is missing Objective-C `@selector`", fd->kind(),
+              fd->toPrettyChars());
+      }
     }
   }
   if (hasObjCSelector) {
-    // TODO: make arg_objcselector to match dmd type
+
+    // SEL is in libobjc an opaque pointer.
+    // As such a void* is fine.
     newIrFty.arg_objcSelector = new IrFuncTyArg(Type::tvoidptr, false);
     ++nextLLArgIdx;
   }
@@ -198,7 +213,7 @@ llvm::FunctionType *DtoFunctionType(Type *type, IrFuncTy &irFty, Type *thistype,
           attrs.addAttribute(LLAttribute::NonNull);
         attrs.addAttribute(LLAttribute::NoUndef);
       } else {
-        attrs.addDereferenceableAttr(loweredDType->size());
+        attrs.addDereferenceableAttr(size(loweredDType));
       }
     } else {
       if (abi->passByVal(f, loweredDType)) {
@@ -279,11 +294,6 @@ llvm::FunctionType *DtoFunctionType(FuncDeclaration *fdecl) {
     if (AggregateDeclaration *ad = fdecl->isMember2()) {
       IF_LOG Logger::println("isMember = this is: %s", ad->type->toChars());
       dthis = ad->type;
-      LLType *thisty = DtoType(dthis);
-      // Logger::cout() << "this llvm type: " << *thisty << '\n';
-      if (ad->isStructDeclaration()) {
-        thisty = getPtrToType(thisty);
-      }
     } else {
       IF_LOG Logger::println("chars: %s type: %s kind: %s", fdecl->toChars(),
                              fdecl->type->toChars(), fdecl->kind());
@@ -1259,7 +1269,7 @@ void DtoDefineFunction(FuncDeclaration *fd, bool linkageAvailableExternally) {
     // initialize _argptr with a call to the va_start intrinsic
     DLValue argptrVal(tvalist, argptrMem);
     LLValue *llAp = gABI->prepareVaStart(&argptrVal);
-    llvm::CallInst::Create(GET_INTRINSIC_DECL(vastart), llAp, "",
+    llvm::CallInst::Create(GET_INTRINSIC_DECL(vastart, llAp->getType()), llAp, "",
                            gIR->scopebb());
 
     // copy _arguments to a memory location
@@ -1270,7 +1280,7 @@ void DtoDefineFunction(FuncDeclaration *fd, bool linkageAvailableExternally) {
       auto *vaendBB = llvm::BasicBlock::Create(gIR->context(), "vaend", func);
       const auto savedInsertPoint = gIR->saveInsertPoint();
       gIR->ir->SetInsertPoint(vaendBB);
-      gIR->ir->CreateCall(GET_INTRINSIC_DECL(vaend), llAp);
+      gIR->ir->CreateCall(GET_INTRINSIC_DECL(vaend, llAp->getType()), llAp);
       funcGen.scopes.pushCleanup(vaendBB, gIR->scopebb());
     }
   }

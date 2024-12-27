@@ -184,7 +184,7 @@ static void addAddressSanitizerPasses(ModulePassManager &mpm,
                                       OptimizationLevel level ) {
   AddressSanitizerOptions aso;
   aso.CompileKernel = false;
-  aso.Recover = false;
+  aso.Recover = opts::isSanitizerRecoveryEnabled(opts::AddressSanitizer);
   aso.UseAfterScope = true;
   aso.UseAfterReturn = opts::fSanitizeAddressUseAfterReturn;
 
@@ -199,7 +199,7 @@ static void addMemorySanitizerPass(ModulePassManager &mpm,
                                    FunctionPassManager &fpm,
                                    OptimizationLevel level ) {
   int trackOrigins = fSanitizeMemoryTrackOrigins;
-  bool recover = false;
+  bool recover = opts::isSanitizerRecoveryEnabled(opts::MemorySanitizer);
   bool kernel = false;
 #if LDC_LLVM_VER >= 1600
   mpm.addPass(MemorySanitizerPass(
@@ -308,6 +308,9 @@ static llvm::Optional<PGOOptions> getPGOOptions() {
         "" /*MemoryProfileUsePath*/, llvm::vfs::getRealFileSystem(),
 #endif
         PGOOptions::PGOAction::IRInstr, PGOOptions::CSPGOAction::NoCSAction,
+#if LDC_LLVM_VER >= 1900
+        PGOOptions::ColdFuncOpt::Default,
+#endif
         debugInfoForProfiling, pseudoProbeForProfiling);
   } else if (opts::isUsingIRBasedPGOProfile()) {
     return PGOOptions(
@@ -316,6 +319,9 @@ static llvm::Optional<PGOOptions> getPGOOptions() {
         "" /*MemoryProfileUsePath*/, llvm::vfs::getRealFileSystem(),
 #endif
         PGOOptions::PGOAction::IRUse, PGOOptions::CSPGOAction::NoCSAction,
+#if LDC_LLVM_VER >= 1900
+        PGOOptions::ColdFuncOpt::Default,
+#endif
         debugInfoForProfiling, pseudoProbeForProfiling);
   } else if (opts::isUsingSampleBasedPGOProfile()) {
     return PGOOptions(
@@ -324,6 +330,9 @@ static llvm::Optional<PGOOptions> getPGOOptions() {
         "" /*MemoryProfileUsePath*/, llvm::vfs::getRealFileSystem(),
 #endif
         PGOOptions::PGOAction::SampleUse, PGOOptions::CSPGOAction::NoCSAction,
+#if LDC_LLVM_VER >= 1900
+        PGOOptions::ColdFuncOpt::Default,
+#endif
         debugInfoForProfiling, pseudoProbeForProfiling);
   }
 #if LDC_LLVM_VER < 1600

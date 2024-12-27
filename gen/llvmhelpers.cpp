@@ -119,13 +119,12 @@ void DtoDeleteInterface(const Loc &loc, DValue *inst) {
 
 void DtoDeleteArray(const Loc &loc, DValue *arr) {
   llvm::Function *fn = getRuntimeFunction(loc, gIR->module, "_d_delarray_t");
-  llvm::FunctionType *fty = fn->getFunctionType();
 
   // the TypeInfo argument must be null if the type has no dtor
   Type *elementType = arr->type->nextOf();
   bool hasDtor = (elementType->toBasetype()->ty == TY::Tstruct &&
                   elementType->needsDestruction());
-  LLValue *typeInfo = !hasDtor ? getNullPtr(fty->getParamType(1))
+  LLValue *typeInfo = !hasDtor ? getNullPtr()
                                : DtoTypeInfoOf(loc, elementType);
 
   LLValue *lval = (arr->isLVal() ? DtoLVal(arr) : makeLValue(loc, arr));
@@ -478,7 +477,7 @@ DValue *DtoNullValue(Type *type, Loc loc) {
   // dynamic array
   if (basety == TY::Tarray) {
     LLValue *len = DtoConstSize_t(0);
-    LLValue *ptr = getNullPtr(DtoPtrToType(basetype->nextOf()));
+    LLValue *ptr = getNullPtr();
     return new DSliceValue(type, len, ptr);
   }
   error(loc, "`null` not known for type `%s`", type->toChars());
@@ -501,8 +500,8 @@ DValue *DtoCastInt(const Loc &loc, DValue *val, Type *_to) {
     return new DImValue(_to, rval);
   }
 
-  size_t fromsz = from->size();
-  size_t tosz = to->size();
+  size_t fromsz = size(from);
+  size_t tosz = size(to);
 
   if (to->ty == TY::Tbool) {
     LLValue *zero = LLConstantInt::get(rval->getType(), 0, false);
@@ -584,8 +583,8 @@ DValue *DtoCastFloat(const Loc &loc, DValue *val, Type *to) {
   Type *fromtype = val->type->toBasetype();
   assert(fromtype->isfloating());
 
-  size_t fromsz = fromtype->size();
-  size_t tosz = totype->size();
+  size_t fromsz = size(fromtype);
+  size_t tosz = size(totype);
 
   LLValue *rval;
 
@@ -647,7 +646,7 @@ DValue *DtoCastVector(const Loc &loc, DValue *val, Type *to) {
       LLValue *vector = DtoLVal(val);
       IF_LOG Logger::cout() << "src: " << *vector << " to type: " << *tolltype
                             << " (casting address)\n";
-      return new DLValue(to, DtoBitCast(vector, getPtrToType(tolltype)));
+      return new DLValue(to, vector);
     }
 
     LLValue *vector = DtoRVal(val);
@@ -656,7 +655,7 @@ DValue *DtoCastVector(const Loc &loc, DValue *val, Type *to) {
     LLValue *array = DtoAllocaDump(vector, tolltype, DtoAlignment(val->type));
     return new DLValue(to, array);
   }
-  if (totype->ty == TY::Tvector && to->size() == val->type->size()) {
+  if (totype->ty == TY::Tvector && size(to) == size(val->type)) {
     return new DImValue(to, DtoBitCast(DtoRVal(val), tolltype));
   }
   error(loc, "invalid cast from `%s` to `%s`", val->type->toChars(),
@@ -900,7 +899,7 @@ void DtoVarDeclaration(VarDeclaration *vd) {
     bool isRealAlloca = false;
     LLType *lltype = DtoType(type); // void for noreturn
     if (lltype->isVoidTy() || gDataLayout->getTypeSizeInBits(lltype) == 0) {
-      allocainst = llvm::ConstantPointerNull::get(getPtrToType(lltype));
+      allocainst = getNullPtr();
     } else if (type != vd->type) {
       allocainst = DtoAlloca(type, vd->toChars());
       isRealAlloca = true;
@@ -918,7 +917,7 @@ void DtoVarDeclaration(VarDeclaration *vd) {
     if (isRealAlloca) {
       // The lifetime of a stack variable starts from the point it is declared
       gIR->funcGen().localVariableLifetimeAnnotator.addLocalVariable(
-          allocainst, DtoConstUlong(type->size()));
+          allocainst, DtoConstUlong(size(type)));
     }
   }
 
@@ -1146,9 +1145,9 @@ LLConstant *DtoConstExpInit(const Loc &loc, Type *targetType, Expression *exp) {
   if (baseTargetType->ty == TY::Tsarray) {
     Logger::println("Building constant array initializer from scalar.");
 
-    assert(baseValType->size() > 0);
-    const auto numTotalVals = baseTargetType->size() / baseValType->size();
-    assert(baseTargetType->size() % baseValType->size() == 0);
+    assert(size(baseValType) > 0);
+    const auto numTotalVals = size(baseTargetType) / size(baseValType);
+    assert(size(baseTargetType) % size(baseValType) == 0);
 
     // may be a multi-dimensional array init, e.g., `char[2][3] x = 0xff`
     baseValType = stripModifiers(baseValType);
@@ -1571,9 +1570,9 @@ DValue *DtoSymbolAddress(const Loc &loc, Type *type, Declaration *decl) {
     if (tb->ty != TY::Tstruct) {
       assert(tb->ty == TY::Tarray && tb->nextOf()->ty == TY::Tvoid);
       const auto size = DtoConstSize_t(ad->structsize);
-      llvm::Constant *ptr = sd && sd->zeroInit()
-                                ? getNullValue(getVoidPtrType())
-                                : getIrAggr(ad)->getInitSymbol();
+      LLConstant *ptr = sd && sd->zeroInit()
+                            ? static_cast<LLConstant *>(getNullPtr())
+                            : getIrAggr(ad)->getInitSymbol();
       return new DSliceValue(type, size, ptr);
     }
 
@@ -1841,6 +1840,18 @@ DLValue *DtoIndexAggregate(LLValue *src, AggregateDeclaration *ad,
   // isIrVarCreated(vd). This is a bit of a hack, we don't actually need this
   // ourselves, DtoType below would be enough.
   DtoResolveDsymbol(ad);
+
+  if (ad->classKind == ClassKind::objc) {
+    auto tHandle = getI32Type();
+    auto tOffset = DtoLoad(tHandle, gIR->objc.getIvar(vd)->offset);
+
+    // Offset is now stored in tOffset.
+    LLValue *ptr = src;
+    ptr = DtoBitCast(ptr, getOpaquePtrType());
+    ptr = DtoGEP1(getI8Type(), ptr, tOffset);
+
+    return new DLValue(vd->type, ptr);
+  }
 
   // Look up field to index or offset to apply.
   auto irTypeAggr = getIrType(ad->type)->isAggr();

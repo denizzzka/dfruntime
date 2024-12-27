@@ -6,6 +6,27 @@
 
 #### Bug fixes
 
+# LDC 1.40.0 (2024-12-15)
+
+#### Big news
+- Frontend, druntime and Phobos are at version [2.110.0](https://dlang.org/changelog/2.110.0.html). (#4707, #4737, #4749, #4768, #4784, #4792, #4798)
+- Support for [LLVM 19](https://releases.llvm.org/19.1.0/docs/ReleaseNotes.html). The prebuilt packages use v19.1.3 (incl. macOS arm64). (#4712, #4735, #4763, #4772)
+- Objective-C: The compiler now properly supports Objective-C classes and protocols, as well as swift stub classes (via the `@swift` UDA). (#4777)
+- Android: NDK for prebuilt package bumped from r26d to r27c. (#4711, #4772)
+- ldc2.conf: `%%ldcconfigpath%%` placeholder added - specifies the directory where current configuration file is located. (#4717)
+- Add support for building against a system copy of zlib through `-DPHOBOS_SYSTEM_ZLIB=ON`. (#4742)
+- Emscripten: The compiler now mimicks a musl Linux platform wrt. extra predefined versions (`linux`, `Posix`, `CRuntime_Musl`, `CppRuntime_LLVM`). (#4750)
+
+#### Platform support
+- Supports LLVM 15 - 19.
+
+#### Bug fixes
+- Fix potentially corrupt IR layouts for bit fields. (#4646, #4708)
+- Fix potentially corrupt IR layouts for explicitly under-aligned aggregates, a regression introduced in LDC v1.31. (#4734, #4736)
+- ELF: Emit (most) instantiated symbols in COMDATs for proper link-time culling. (#3589, #4748)
+- Support scalar right-hand-sides when bit-shifting vectors. (#3606, #4781)
+- Fix LLVM data layout for the SPIR-V target used in D-Compute on LLVM 19+. (#4772)
+
 # LDC 1.39.0 (2024-07-04)
 
 #### Big news
@@ -917,7 +938,7 @@
 - Misc. debuginfo issues, incl. adaptations to internal LLVM 5.0 changes: (#2315)
   - `ref` parameters and closure parameters declared with wrong address and hence potentially showing garbage.
   - Win64: parameters > 64 bit passed by value showing garbage.
-  - Win64: debuginfos for closure and nested variables now finally available starting with LLVM 5.0. 
+  - Win64: debuginfos for closure and nested variables now finally available starting with LLVM 5.0.
 - LLVM error `Global variable initializer type does not match global variable type!` for `T.init` with explicit initializers for dominated members in nested unions. (#2108)
 - Inconsistent handling of lvalue slicees wrt. visible side-effects of slice lower/upper bound expressions. (#1433)
 - Misc. dcompute issues. (#2195, #2215)

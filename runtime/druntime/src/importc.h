@@ -9,6 +9,13 @@
  */
 
 /**********************
+ * Silence noisy warnings for this file
+ */
+#ifdef __GNUC__
+#pragma GCC system_header
+#endif
+
+/**********************
  * For special casing ImportC code.
  */
 #define __IMPORTC__ 1
@@ -34,6 +41,7 @@
 #define __alignof _Alignof
 #define __vector_size__ vector_size
 #define __typeof typeof
+#define __typeof__ typeof
 
 /********************
  * Clang nullability extension used by macOS headers.

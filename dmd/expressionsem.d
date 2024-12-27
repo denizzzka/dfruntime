@@ -137,16 +137,26 @@ private bool isNeedThisScope(Scope* sc, Declaration d)
  *      buf = append generated string to buffer
  *      sc = context
  *      exps = array of Expressions
+ *      loc = location of the pragma / mixin where this conversion was requested, for supplemental error
+ *      fmt = format string for supplemental error. May contain 1 `%s` which prints the faulty expression
+ *      expandTuples = whether tuples should be expanded rather than printed as tuple syntax
  * Returns:
  *      true on error
  */
-bool expressionsToString(ref OutBuffer buf, Scope* sc, Expressions* exps)
+bool expressionsToString(ref OutBuffer buf, Scope* sc, Expressions* exps,
+    Loc loc, const(char)* fmt, bool expandTuples)
 {
     if (!exps)
         return false;
 
     foreach (ex; *exps)
     {
+        bool error()
+        {
+            if (loc != Loc.initial && fmt)
+                errorSupplemental(loc, fmt, ex.toChars());
+            return true;
+        }
         if (!ex)
             continue;
         auto sc2 = sc.startCTFE();
@@ -159,15 +169,16 @@ bool expressionsToString(ref OutBuffer buf, Scope* sc, Expressions* exps)
         // allowed to contain types as well as expressions
         auto e4 = ctfeInterpretForPragmaMsg(e3);
         if (!e4 || e4.op == EXP.error)
-            return true;
+            return error();
 
         // expand tuple
-        if (auto te = e4.isTupleExp())
-        {
-            if (expressionsToString(buf, sc, te.exps))
-                return true;
-            continue;
-        }
+        if (expandTuples)
+            if (auto te = e4.isTupleExp())
+            {
+                if (expressionsToString(buf, sc, te.exps, loc, fmt, true))
+                    return error();
+                continue;
+            }
         // char literals exp `.toStringExp` return `null` but we cant override it
         // because in most contexts we don't want the conversion to succeed.
         IntegerExp ie = e4.isIntegerExp();
@@ -178,9 +189,11 @@ bool expressionsToString(ref OutBuffer buf, Scope* sc, Expressions* exps)
             e4 = new ArrayLiteralExp(ex.loc, tsa, ie);
         }
 
-        if (StringExp se = e4.toStringExp())
+        StringExp se = e4.toStringExp();
+
+        if (se && se.type.nextOf().ty.isSomeChar)
             buf.writestring(se.toUTF8(sc).peekString());
-        else
+        else if (!(se && se.len == 0)) // don't print empty array literal `[]`
             buf.writestring(e4.toString());
     }
     return false;
@@ -333,6 +346,7 @@ StringExp toUTF8(StringExp se, Scope* sc)
         Expression e = castTo(se, sc, Type.tchar.arrayOf());
         e = e.optimize(WANTvalue);
         auto result = e.isStringExp();
+        assert(result);
         assert(result.sz == 1);
         return result;
     }
@@ -5540,7 +5554,7 @@ private extern (C++) final class ExpressionSemanticVisitor : Visitor
     {
         if (exp.fd.ident == Id.empty)
         {
-            const(char)[] s;
+            string s;
             if (exp.fd.fes)
                 s = "__foreachbody";
             else if (exp.fd.tok == TOK.reserved)
@@ -5574,7 +5588,7 @@ private extern (C++) final class ExpressionSemanticVisitor : Visitor
                 symtab = sds.symtab;
             }
             assert(symtab);
-            Identifier id = Identifier.generateId(s, symtab.length() + 1);
+            Identifier id = Identifier.generateIdWithLoc(s, exp.loc, cast(string) toDString(sc.parent.toPrettyChars()));
             exp.fd.ident = id;
             if (exp.td)
                 exp.td.ident = id;
@@ -7097,17 +7111,7 @@ private extern (C++) final class ExpressionSemanticVisitor : Visitor
             // Handle this in the glue layer
             e = new TypeidExp(exp.loc, ta);
 
-            bool genObjCode = true;
-
-            // https://issues.dlang.org/show_bug.cgi?id=23650
-            // We generate object code for typeinfo, required
-            // by typeid, only if in non-speculative context
-            if (sc.flags & SCOPE.compile)
-            {
-                genObjCode = false;
-            }
-
-            e.type = getTypeInfoType(exp.loc, ta, sc, genObjCode);
+            e.type = getTypeInfoType(exp.loc, ta, sc);
             semanticTypeInfo(sc, ta);
 
             if (ea)
@@ -7614,7 +7618,7 @@ private extern (C++) final class ExpressionSemanticVisitor : Visitor
     private Expression compileIt(MixinExp exp, Scope *sc)
     {
         OutBuffer buf;
-        if (expressionsToString(buf, sc, exp.exps))
+        if (expressionsToString(buf, sc, exp.exps, exp.loc, null, true))
             return null;
 
         uint errors = global.errors;
@@ -7758,6 +7762,7 @@ private extern (C++) final class ExpressionSemanticVisitor : Visitor
             if (auto fmResult = global.fileManager.getFileContents(fileName))
             {
                 se = new StringExp(e.loc, fmResult);
+                se.hexString = true;
             }
             else
             {
@@ -9267,12 +9272,26 @@ version (IN_LLVM)
         }
 
         // Check for unsafe casts
-        if (!isSafeCast(ex, t1b, tob))
+        string msg;
+        if (!isSafeCast(ex, t1b, tob, msg))
         {
-            if (sc.setUnsafe(false, exp.loc, "cast from `%s` to `%s` not allowed in safe code", exp.e1.type, exp.to))
+            if (sc.setUnsafe(false, exp.loc,
+                "cast from `%s` to `%s` not allowed in safe code", exp.e1.type, exp.to))
             {
+                if (msg.length)
+                    errorSupplemental(exp.loc, "%s", (msg ~ '\0').ptr);
                 return setError();
             }
+        }
+        else if (msg.length) // deprecated unsafe
+        {
+            const err = sc.setUnsafePreview(FeatureState.default_, false, exp.loc,
+                "cast from `%s` to `%s` not allowed in safe code", exp.e1.type, exp.to);
+            // if message was printed
+            if (sc.func && sc.func.isSafeBypassingInference() && !sc.isDeprecated())
+                deprecationSupplemental(exp.loc, "%s", (msg ~ '\0').ptr);
+            if (err)
+                return setError();
         }
 
         // `object.__ArrayCast` is a rewrite of an old runtime hook `_d_arraycast`. `_d_arraycast` was not built
@@ -11429,11 +11448,6 @@ version (IN_LLVM)
                 else
                     e2x = e2x.implicitCastTo(sc, exp.e1.type);
             }
-            if (t1n.toBasetype.ty == Tvoid && t2n.toBasetype.ty == Tvoid)
-            {
-                if (sc.setUnsafe(false, exp.loc, "cannot copy `void[]` to `void[]` in `@safe` code"))
-                    return setError();
-            }
         }
         else
         {
@@ -11463,6 +11477,33 @@ version (IN_LLVM)
                                           "`opAssign` methods are not used for initialization, but for subsequent assignments");
                     }
                 }
+            }
+        }
+
+        if (exp.e1.op == EXP.slice &&
+            (t1.ty == Tarray || t1.ty == Tsarray) &&
+            t1.nextOf().toBasetype().ty == Tvoid)
+        {
+            if (t2.nextOf().implicitConvTo(t1.nextOf()))
+            {
+                if (sc.setUnsafe(false, exp.loc, "cannot copy `%s` to `%s` in `@safe` code", t2, t1))
+                    return setError();
+            }
+            else
+            {
+                // copying from non-void to void was overlooked, deprecate
+                if (sc.setUnsafePreview(FeatureState.default_, false, exp.loc,
+                    "cannot copy `%s` to `%s` in `@safe` code", t2, t1))
+                    return setError();
+            }
+            if (global.params.fixImmutableConv && !t2.implicitConvTo(t1))
+            {
+                error(exp.loc, "cannot copy `%s` to `%s`",
+                    t2.toChars(), t1.toChars());
+                errorSupplemental(exp.loc,
+                    "Source data has incompatible type qualifier(s)");
+                errorSupplemental(exp.loc, "Use `cast(%s)` to force copy", t1.toChars());
+                return setError();
             }
         }
         if (e2x.op == EXP.error)
@@ -11853,6 +11894,8 @@ version (IN_LLVM)
             (tb2.ty == Tarray || tb2.ty == Tsarray) &&
             (exp.e2.implicitConvTo(exp.e1.type) ||
              (tb2.nextOf().implicitConvTo(tb1next) &&
+             // Do not strip const(void)[]
+             (!global.params.fixImmutableConv || tb1next.ty != Tvoid) &&
               (tb2.nextOf().size(Loc.initial) == tb1next.size(Loc.initial)))))
         {
             // EXP.concatenateAssign
@@ -12602,7 +12645,9 @@ version (IN_LLVM)
             exp.type = tb.nextOf().arrayOf();
         if (exp.type.ty == Tarray && tb1next && tb2next && tb1next.mod != tb2next.mod)
         {
-            exp.type = exp.type.nextOf().toHeadMutable().arrayOf();
+            // Do not strip const(void)[]
+            if (!global.params.fixImmutableConv || tb.nextOf().ty != Tvoid)
+                exp.type = exp.type.nextOf().toHeadMutable().arrayOf();
         }
         if (Type tbn = tb.nextOf())
         {
@@ -12971,80 +13016,60 @@ version (IN_LLVM)
         return;
     }
 
+    private void visitShift(BinExp exp)
+    {
+        if (exp.type)
+        {
+            result = exp;
+            return;
+        }
+
+        if (Expression ex = binSemanticProp(exp, sc))
+        {
+            result = ex;
+            return;
+        }
+        Expression e = exp.op_overload(sc);
+        if (e)
+        {
+            result = e;
+            return;
+        }
+
+        if (exp.checkIntegralBin() || exp.checkSharedAccessBin(sc))
+            return setError();
+
+        if (!target.isVectorOpSupported(exp.e1.type.toBasetype(), exp.op, exp.e2.type.toBasetype()))
+        {
+            result = exp.incompatibleTypes();
+            return;
+        }
+
+        exp.e1 = integralPromotions(exp.e1, sc);
+        if (exp.e2.type.toBasetype().ty != Tvector)
+        {
+            Type tb1 = exp.e1.type.toBasetype();
+            exp.e2 = exp.e2.castTo(sc, tb1.ty == Tvector ? tb1 : Type.tshiftcnt);
+        }
+
+        exp.type = exp.e1.type;
+        result = exp;
+    }
+
     override void visit(ShlExp exp)
     {
-        //printf("ShlExp::semantic(), type = %p\n", type);
-        if (exp.type)
-        {
-            result = exp;
-            return;
-        }
-
-        if (Expression ex = binSemanticProp(exp, sc))
-        {
-            result = ex;
-            return;
-        }
-        Expression e = exp.op_overload(sc);
-        if (e)
-        {
-            result = e;
-            return;
-        }
-
-        if (exp.checkIntegralBin() || exp.checkSharedAccessBin(sc))
-            return setError();
-
-        if (!target.isVectorOpSupported(exp.e1.type.toBasetype(), exp.op, exp.e2.type.toBasetype()))
-        {
-            result = exp.incompatibleTypes();
-            return;
-        }
-        exp.e1 = integralPromotions(exp.e1, sc);
-        if (exp.e2.type.toBasetype().ty != Tvector)
-            exp.e2 = exp.e2.castTo(sc, Type.tshiftcnt);
-
-        exp.type = exp.e1.type;
-        result = exp;
+        visitShift(exp);
     }
-
     override void visit(ShrExp exp)
     {
-        if (exp.type)
-        {
-            result = exp;
-            return;
-        }
-
-        if (Expression ex = binSemanticProp(exp, sc))
-        {
-            result = ex;
-            return;
-        }
-        Expression e = exp.op_overload(sc);
-        if (e)
-        {
-            result = e;
-            return;
-        }
-
-        if (exp.checkIntegralBin() || exp.checkSharedAccessBin(sc))
-            return setError();
-
-        if (!target.isVectorOpSupported(exp.e1.type.toBasetype(), exp.op, exp.e2.type.toBasetype()))
-        {
-            result = exp.incompatibleTypes();
-            return;
-        }
-        exp.e1 = integralPromotions(exp.e1, sc);
-        if (exp.e2.type.toBasetype().ty != Tvector)
-            exp.e2 = exp.e2.castTo(sc, Type.tshiftcnt);
-
-        exp.type = exp.e1.type;
-        result = exp;
+        visitShift(exp);
+    }
+    override void visit(UshrExp exp)
+    {
+        visitShift(exp);
     }
 
-    override void visit(UshrExp exp)
+    private void visitBinaryBitOp(BinExp exp)
     {
         if (exp.type)
         {
@@ -13064,185 +13089,52 @@ version (IN_LLVM)
             return;
         }
 
-        if (exp.checkIntegralBin() || exp.checkSharedAccessBin(sc))
-            return setError();
+        if (exp.e1.type.toBasetype().ty == Tbool && exp.e2.type.toBasetype().ty == Tbool)
+        {
+            exp.type = exp.e1.type;
+            result = exp;
+            return;
+        }
 
-        if (!target.isVectorOpSupported(exp.e1.type.toBasetype(), exp.op, exp.e2.type.toBasetype()))
+        if (Expression ex = typeCombine(exp, sc))
+        {
+            result = ex;
+            return;
+        }
+
+        Type tb = exp.type.toBasetype();
+        if (tb.ty == Tarray || tb.ty == Tsarray)
+        {
+            if (!isArrayOpValid(exp))
+            {
+                result = arrayOpInvalidError(exp);
+                return;
+            }
+            result = exp;
+            return;
+        }
+        if (!target.isVectorOpSupported(tb, exp.op, exp.e2.type.toBasetype()))
         {
             result = exp.incompatibleTypes();
             return;
         }
-        exp.e1 = integralPromotions(exp.e1, sc);
-        if (exp.e2.type.toBasetype().ty != Tvector)
-            exp.e2 = exp.e2.castTo(sc, Type.tshiftcnt);
+        if (exp.checkIntegralBin() || exp.checkSharedAccessBin(sc))
+            return setError();
 
-        exp.type = exp.e1.type;
         result = exp;
     }
 
     override void visit(AndExp exp)
     {
-        if (exp.type)
-        {
-            result = exp;
-            return;
-        }
-
-        if (Expression ex = binSemanticProp(exp, sc))
-        {
-            result = ex;
-            return;
-        }
-        Expression e = exp.op_overload(sc);
-        if (e)
-        {
-            result = e;
-            return;
-        }
-
-        if (exp.e1.type.toBasetype().ty == Tbool && exp.e2.type.toBasetype().ty == Tbool)
-        {
-            exp.type = exp.e1.type;
-            result = exp;
-            return;
-        }
-
-        if (Expression ex = typeCombine(exp, sc))
-        {
-            result = ex;
-            return;
-        }
-
-        Type tb = exp.type.toBasetype();
-        if (tb.ty == Tarray || tb.ty == Tsarray)
-        {
-            if (!isArrayOpValid(exp))
-            {
-                result = arrayOpInvalidError(exp);
-                return;
-            }
-            result = exp;
-            return;
-        }
-        if (!target.isVectorOpSupported(tb, exp.op, exp.e2.type.toBasetype()))
-        {
-            result = exp.incompatibleTypes();
-            return;
-        }
-        if (exp.checkIntegralBin() || exp.checkSharedAccessBin(sc))
-            return setError();
-
-        result = exp;
+        visitBinaryBitOp(exp);
     }
-
     override void visit(OrExp exp)
     {
-        if (exp.type)
-        {
-            result = exp;
-            return;
-        }
-
-        if (Expression ex = binSemanticProp(exp, sc))
-        {
-            result = ex;
-            return;
-        }
-        Expression e = exp.op_overload(sc);
-        if (e)
-        {
-            result = e;
-            return;
-        }
-
-        if (exp.e1.type.toBasetype().ty == Tbool && exp.e2.type.toBasetype().ty == Tbool)
-        {
-            exp.type = exp.e1.type;
-            result = exp;
-            return;
-        }
-
-        if (Expression ex = typeCombine(exp, sc))
-        {
-            result = ex;
-            return;
-        }
-
-        Type tb = exp.type.toBasetype();
-        if (tb.ty == Tarray || tb.ty == Tsarray)
-        {
-            if (!isArrayOpValid(exp))
-            {
-                result = arrayOpInvalidError(exp);
-                return;
-            }
-            result = exp;
-            return;
-        }
-        if (!target.isVectorOpSupported(tb, exp.op, exp.e2.type.toBasetype()))
-        {
-            result = exp.incompatibleTypes();
-            return;
-        }
-        if (exp.checkIntegralBin() || exp.checkSharedAccessBin(sc))
-            return setError();
-
-        result = exp;
+        visitBinaryBitOp(exp);
     }
-
     override void visit(XorExp exp)
     {
-        if (exp.type)
-        {
-            result = exp;
-            return;
-        }
-
-        if (Expression ex = binSemanticProp(exp, sc))
-        {
-            result = ex;
-            return;
-        }
-        Expression e = exp.op_overload(sc);
-        if (e)
-        {
-            result = e;
-            return;
-        }
-
-        if (exp.e1.type.toBasetype().ty == Tbool && exp.e2.type.toBasetype().ty == Tbool)
-        {
-            exp.type = exp.e1.type;
-            result = exp;
-            return;
-        }
-
-        if (Expression ex = typeCombine(exp, sc))
-        {
-            result = ex;
-            return;
-        }
-
-        Type tb = exp.type.toBasetype();
-        if (tb.ty == Tarray || tb.ty == Tsarray)
-        {
-            if (!isArrayOpValid(exp))
-            {
-                result = arrayOpInvalidError(exp);
-                return;
-            }
-            result = exp;
-            return;
-        }
-        if (!target.isVectorOpSupported(tb, exp.op, exp.e2.type.toBasetype()))
-        {
-            result = exp.incompatibleTypes();
-            return;
-        }
-        if (exp.checkIntegralBin() || exp.checkSharedAccessBin(sc))
-            return setError();
-
-        result = exp;
+        visitBinaryBitOp(exp);
     }
 
     override void visit(LogicalExp exp)
@@ -15106,6 +14998,27 @@ bool checkSharedAccess(Expression e, Scope* sc, bool returnRef = false)
         sc.flags & SCOPE.ctfe)
     {
         return false;
+    }
+    else if (sc._module.ident == Id.atomic && sc._module.parent !is null)
+    {
+        // Allow core.internal.atomic, it is an compiler implementation for a given platform module.
+        // It is then exposed by other modules such as core.atomic and core.stdc.atomic.
+        // This is available as long as druntime is on the import path and the platform supports that operation.
+
+        // https://issues.dlang.org/show_bug.cgi?id=24846
+
+        Package parent = sc._module.parent.isPackage();
+        if (parent !is null)
+        {
+            // This can be easily converted over to apply to core.atomic and core.internal.atomic
+            if (parent.ident == Id.internal)
+            {
+                parent = parent.parent.isPackage();
+
+                if (parent !is null && parent.ident == Id.core && parent.parent is null)
+                   return false;
+            }
+        }
     }
 
     //printf("checkSharedAccess() `%s` returnRef: %d\n", e.toChars(), returnRef);

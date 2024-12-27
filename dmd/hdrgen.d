@@ -62,6 +62,7 @@ struct HdrGenState
     bool doFuncBodies;  /// include function bodies in output
     bool vcg_ast;       /// write out codegen-ast
     bool skipConstraints;  // skip constraints when doing templates
+    bool showOneMember = true;
 
     bool fullQual;      /// fully qualify types when printing
     int tpltMember;
@@ -1725,10 +1726,10 @@ void toCBuffer(Dsymbol s, ref OutBuffer buf, ref HdrGenState hgs)
         //printf("FuncDeclaration::toCBuffer() '%s'\n", f.toChars());
         if (stcToBuffer(buf, f.storage_class))
             buf.writeByte(' ');
+        typeToBuffer(f.type, f.ident, buf, hgs);
         auto tf = f.type.isTypeFunction();
-        typeToBuffer(tf, f.ident, buf, hgs);
 
-        if (hgs.hdrgen)
+        if (hgs.hdrgen && tf)
         {
             // if the return type is missing (e.g. ref functions or auto)
             // https://issues.dlang.org/show_bug.cgi?id=20090
@@ -1863,9 +1864,9 @@ void toCBuffer(Dsymbol s, ref OutBuffer buf, ref HdrGenState hgs)
         if (stcToBuffer(buf, d.storage_class))
             buf.writeByte(' ');
         buf.writestring("invariant");
-        if(auto es = d.fbody.isExpStatement())
+        auto es = d.fbody.isExpStatement();
+        if (es && es.exp && es.exp.op == EXP.assert_)
         {
-            assert(es.exp && es.exp.op == EXP.assert_);
             buf.writestring(" (");
             (cast(AssertExp)es.exp).e1.expressionToBuffer(buf, hgs);
             buf.writestring(");");
@@ -1980,7 +1981,7 @@ void toCharsMaybeConstraints(const TemplateDeclaration td, ref OutBuffer buf, re
     }
     buf.writeByte(')');
 
-    if (td.onemember)
+    if (hgs.showOneMember && td.onemember)
     {
         if (const fd = td.onemember.isFuncDeclaration())
         {
@@ -3938,9 +3939,9 @@ private void visitFuncIdentWithPrefix(TypeFunction t, const Identifier ident, Te
         buf.writeByte(' ');
     }
 
-    void ignoreReturn(string str)
+    void dg(string str)
     {
-        if (str != "return")
+        if (str != "return" && str != "scope")
         {
             // don't write 'ref' for ctors
             if ((ident == Id.ctor) && str == "ref")
@@ -3949,7 +3950,7 @@ private void visitFuncIdentWithPrefix(TypeFunction t, const Identifier ident, Te
             buf.writeByte(' ');
         }
     }
-    t.attributesApply(&ignoreReturn);
+    t.attributesApply(&dg);
 
     if (t.linkage > LINK.d && hgs.ddoc != 1 && !hgs.hdrgen)
     {
@@ -3982,7 +3983,15 @@ private void visitFuncIdentWithPrefix(TypeFunction t, const Identifier ident, Te
         buf.writeByte(')');
     }
     parametersToBuffer(t.parameterList, buf, hgs);
-    if (t.isreturn)
+    if (t.isreturnscope && !t.isreturninferred)
+    {
+        buf.writestring(" return scope");
+    }
+    else if (t.isScopeQual && !t.isscopeinferred)
+    {
+        buf.writestring(" scope");
+    }
+    if (t.isreturn && !t.isreturnscope && !t.isreturninferred)
     {
         buf.writestring(" return");
     }

@@ -130,7 +130,7 @@ struct ImplicitByvalRewrite : ABIRewrite {
 
   LLValue *getLVal(Type *dty, LLValue *v) override { return v; }
 
-  LLType *type(Type *t) override { return DtoPtrToType(t); }
+  LLType *type(Type *t) override { return getOpaquePtrType(); }
 
   void applyTo(IrFuncTyArg &arg, LLType *finalLType = nullptr) override {
     ABIRewrite::applyTo(arg, finalLType);
@@ -165,7 +165,7 @@ struct X86_64TargetABI : TargetABI {
 
   Type *vaListType() override;
 
-  const char *objcMsgSendFunc(Type *ret, IrFuncTy &fty) override;
+  const char *objcMsgSendFunc(Type *ret, IrFuncTy &fty, bool directcall) override;
 
 private:
   LLType *getValistType();
@@ -196,9 +196,6 @@ private:
   }
 };
 
-// The public getter for abi.cpp
-TargetABI *getX86_64TargetABI() { return new X86_64TargetABI; }
-
 bool X86_64TargetABI::returnInArg(TypeFunction *tf, bool) {
   if (tf->isref()) {
     return false;
@@ -216,7 +213,7 @@ bool X86_64TargetABI::returnInArg(TypeFunction *tf, bool) {
 // Prefer a ref if the POD cannot be passed in registers, i.e., if the LLVM
 // ByVal attribute would be applied, *and* the size is > 16.
 bool X86_64TargetABI::preferPassByRef(Type *t) {
-  return t->size() > 16 && passInMemory(t->toBasetype());
+  return size(t) > 16 && passInMemory(t->toBasetype());
 }
 
 bool X86_64TargetABI::passByVal(TypeFunction *tf, Type *t) {
@@ -336,13 +333,13 @@ void X86_64TargetABI::rewriteVarargs(IrFuncTy &fty,
 
 LLType *X86_64TargetABI::getValistType() {
   LLType *uintType = LLType::getInt32Ty(gIR->context());
-  LLType *voidPointerType = getVoidPtrType();
+  LLType *pointerType = getOpaquePtrType();
 
-  std::vector<LLType *> parts;      // struct __va_list_tag {
-  parts.push_back(uintType);        //   uint gp_offset;
-  parts.push_back(uintType);        //   uint fp_offset;
-  parts.push_back(voidPointerType); //   void* overflow_arg_area;
-  parts.push_back(voidPointerType); //   void* reg_save_area; }
+  std::vector<LLType *> parts;  // struct __va_list_tag {
+  parts.push_back(uintType);    //   uint gp_offset;
+  parts.push_back(uintType);    //   uint fp_offset;
+  parts.push_back(pointerType); //   void* overflow_arg_area;
+  parts.push_back(pointerType); //   void* reg_save_area; }
 
   return LLStructType::get(gIR->context(), parts);
 }
@@ -382,21 +379,19 @@ Type *X86_64TargetABI::vaListType() {
       TypeIdentifier::create(Loc(), Identifier::idPool("__va_list_tag")));
 }
 
-const char *X86_64TargetABI::objcMsgSendFunc(Type *ret,
-                                             IrFuncTy &fty) {
+const char *X86_64TargetABI::objcMsgSendFunc(Type *ret, IrFuncTy &fty, bool directcall) {
+  assert(isDarwin());
+    
   // see objc/message.h for objc_msgSend selection rules
   if (fty.arg_sret) {
-    return "objc_msgSend_stret";
+    return directcall ? "objc_msgSendSuper_stret" : "objc_msgSend_stret";
   }
-  if (ret) {
-    // complex long double return
-    if (ret->ty == TY::Tcomplex80) {
-      return "objc_msgSend_fp2ret";
-    }
-    // long double return
-    if (ret->ty == TY::Tfloat80 || ret->ty == TY::Timaginary80) {
-      return "objc_msgSend_fpret";
-    }
+  // float, double, long double return
+  if (ret && ret->isfloating()) {
+    return ret->ty == TY::Tcomplex80 ? "objc_msgSend_fp2ret" : "objc_msgSend_fpret";
   }
-  return "objc_msgSend";
+  return directcall ? "objc_msgSendSuper" : "objc_msgSend";
 }
+
+// The public getter for abi.cpp
+TargetABI *getX86_64TargetABI() { return new X86_64TargetABI; }

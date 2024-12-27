@@ -18,6 +18,8 @@
 #include "gen/abi/generic.h"
 #include "llvm/Target/TargetMachine.h"
 
+using namespace dmd;
+
 struct ArmTargetABI : TargetABI {
   HFVAToArray hfvaToArray;
   CompositeToArray32 compositeToArray32;
@@ -36,7 +38,7 @@ struct ArmTargetABI : TargetABI {
       return true;
 
     return rt->ty == TY::Tsarray ||
-           (rt->ty == TY::Tstruct && rt->size() > 4 &&
+           (rt->ty == TY::Tstruct && size(rt) > 4 &&
             (gTargetMachine->Options.FloatABIType == llvm::FloatABI::Soft ||
              !isHFVA(rt, hfvaToArray.maxElements)));
   }
@@ -47,7 +49,7 @@ struct ArmTargetABI : TargetABI {
     // converts back to non-byval.  Without this special handling the
     // optimzer generates bad code (e.g. std.random unittest crash).
     t = t->toBasetype();
-    return ((t->ty == TY::Tsarray || t->ty == TY::Tstruct) && t->size() > 64);
+    return ((t->ty == TY::Tsarray || t->ty == TY::Tstruct) && size(t) > 64);
 
     // Note: byval can have a codegen problem with -O1 and higher.
     // What happens is that load instructions are being incorrectly
@@ -119,14 +121,6 @@ struct ArmTargetABI : TargetABI {
     // is actually available in the scope (this is what DMD does, so if a better
     // solution is found there, this should be adapted).
     return TypeIdentifier::create(Loc(), Identifier::idPool("__va_list"));
-  }
-
-  const char *objcMsgSendFunc(Type *ret, IrFuncTy &fty) override {
-    // see objc/message.h for objc_msgSend selection rules
-    if (fty.arg_sret) {
-      return "objc_msgSend_stret";
-    }
-    return "objc_msgSend";
   }
 };
 

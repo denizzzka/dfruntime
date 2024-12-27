@@ -17,6 +17,8 @@
 #include "gen/abi/abi.h"
 #include "gen/abi/generic.h"
 
+using namespace dmd;
+
 /**
  * AAPCS64 uses a special native va_list type, a struct aliased as
  * object.__va_list in druntime. Apple diverges and uses a simple char*
@@ -27,12 +29,11 @@
  */
 struct AArch64TargetABI : TargetABI {
 private:
-  const bool isDarwin;
   IndirectByvalRewrite indirectByvalRewrite;
   ArgTypesRewrite argTypesRewrite;
 
   bool isAAPCS64VaList(Type *t) {
-    if (isDarwin)
+    if (isDarwin())
       return false;
 
     // look for a __va_list struct in a `std` C++ namespace
@@ -49,7 +50,7 @@ private:
   }
 
 public:
-  AArch64TargetABI() : isDarwin(global.params.targetTriple->isOSDarwin()) {}
+  AArch64TargetABI() {}
 
   bool returnInArg(TypeFunction *tf, bool) override {
     if (tf->isref()) {
@@ -100,13 +101,13 @@ public:
       if (!arg->byref) {
         auto tb = arg->type->toBasetype();
 
-        if (tb->size() == 0) {
+        if (size(tb) == 0) {
           fty.args.erase(fty.args.begin() + i);
           continue;
         }
 
         // https://developer.apple.com/library/archive/documentation/Xcode/Conceptual/iPhoneOSABIReference/Articles/ARM64FunctionCallingConventions.html#//apple_ref/doc/uid/TP40013702-SW1
-        if (isDarwin) {
+        if (isDarwin()) {
           if (auto ts = tb->isTypeStruct()) {
             if (ts->sym->fields.empty() && ts->sym->isPOD()) {
               fty.args.erase(fty.args.begin() + i);
@@ -164,7 +165,7 @@ public:
   }
 
   Type *vaListType() override {
-    if (isDarwin)
+    if (isDarwin())
       return TargetABI::vaListType(); // char*
 
     // We need to pass the actual va_list type for correct mangling. Simply
@@ -174,9 +175,11 @@ public:
     return TypeIdentifier::create(Loc(), Identifier::idPool("__va_list"));
   }
 
-  const char *objcMsgSendFunc(Type *ret, IrFuncTy &fty) override {
+  const char *objcMsgSendFunc(Type *ret, IrFuncTy &fty, bool directcall) override {
+    assert(isDarwin());
+    
     // see objc/message.h for objc_msgSend selection rules
-    return "objc_msgSend";
+    return directcall ? "objc_msgSendSuper" : "objc_msgSend";
   }
 };
 

@@ -1217,7 +1217,7 @@ int actionTableLookup(_Unwind_Exception* exceptionObject, uint actionRecordPtr, 
         ClassInfo ci = cast(ClassInfo)cast(void*)(entry);
         if (typeid(ci) is typeid(__cpp_type_info_ptr))
         {
-            version (CppRuntime_Gcc)
+            version (CppRuntime_GNU)
             {
                 if (exceptionClass == cppExceptionClass || exceptionClass == cppExceptionClass1)
                 {
@@ -1263,7 +1263,7 @@ void terminate(uint line) @nogc
 
 /****************************** C++ Support *****************************/
 
-version (CppRuntime_Gcc)
+version (CppRuntime_GNU)
 {
     enum _Unwind_Exception_Class cppExceptionClass =
             (cast(_Unwind_Exception_Class)'G' << 56) |

@@ -48,6 +48,10 @@ static llvm::cl::opt<bool> linkNoCpp(
     "link-no-cpp", llvm::cl::ZeroOrMore, llvm::cl::Hidden,
     llvm::cl::desc("Disable automatic linking with the C++ standard library."));
 
+static llvm::cl::opt<bool> linkNoObjc(
+    "link-no-objc", llvm::cl::ZeroOrMore, llvm::cl::Hidden,
+    llvm::cl::desc("Disable automatic linking with the Objective-C runtime library."));
+
 //////////////////////////////////////////////////////////////////////////////
 
 namespace {
@@ -72,6 +76,7 @@ private:
   virtual void addXRayLinkFlags(const llvm::Triple &triple);
   virtual bool addCompilerRTArchiveLinkFlags(llvm::StringRef baseName,
                                              const llvm::Triple &triple);
+  virtual void addObjcStdlibLinkFlags(const llvm::Triple &triple);
 
   virtual void addLinker();
   virtual void addUserSwitches();
@@ -467,6 +472,13 @@ void ArgsBuilder::addCppStdlibLinkFlags(const llvm::Triple &triple) {
   }
 }
 
+void ArgsBuilder::addObjcStdlibLinkFlags(const llvm::Triple &triple) {
+  if (linkNoObjc)
+    return;
+    
+  args.push_back("-lobjc");
+}
+
 // Adds all required link flags for PGO.
 void ArgsBuilder::addProfileRuntimeLinkFlags(const llvm::Triple &triple) {
   const auto searchPaths =
@@ -507,6 +519,13 @@ void ArgsBuilder::addSanitizers(const llvm::Triple &triple) {
 
   if (opts::isSanitizerEnabled(opts::ThreadSanitizer)) {
     addSanitizerLinkFlags(triple, "tsan", "-fsanitize=thread");
+  }
+
+  if (opts::isSanitizerRecoveryEnabled(opts::AddressSanitizer)) {
+      args.push_back("-fsanitize-recover=address");
+  }
+  if (opts::isSanitizerRecoveryEnabled(opts::MemorySanitizer)) {
+      args.push_back("-fsanitize-recover=memory");
   }
 }
 
@@ -583,6 +602,10 @@ void ArgsBuilder::build(llvm::StringRef outputPath,
   for (const auto &name : defaultLibNames) {
     args.push_back("-l" + name);
   }
+#ifdef PHOBOS_SYSTEM_ZLIB
+  if (!defaultLibNames.empty() && !linkAgainstSharedDefaultLibs())
+      args.push_back("-lz");
+#endif
 
   // libs added via pragma(lib, libname)
   for (auto ls : global.params.linkswitches) {
@@ -719,6 +742,13 @@ void ArgsBuilder::addDefaultPlatformLibs() {
     // OS not yet handled, will probably lead to linker errors.
     // FIXME: Win32.
     break;
+  }
+
+  if (triple.isOSDarwin()) {
+    
+    // libobjc is more or less required, so we link against it here.
+    // This could be prettier, though.
+    addObjcStdlibLinkFlags(triple);
   }
 
   if (triple.isWindowsGNUEnvironment()) {

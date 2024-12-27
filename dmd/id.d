@@ -389,6 +389,7 @@ immutable Msgtable[] msgtable =
     // Builtin functions
     { "std" },
     { "core" },
+    { "internal" },
     { "config" },
     { "c_complex_float" },
     { "c_complex_double" },
@@ -481,6 +482,7 @@ immutable Msgtable[] msgtable =
     { "isRef" },
     { "isOut" },
     { "isLazy" },
+    { "isCOMClass" },
     { "hasMember" },
     { "identifier" },
     { "fullyQualifiedName" },
@@ -574,6 +576,7 @@ immutable Msgtable[] msgtable =
     { "define" },
     { "undef" },
     { "ident" },
+    { "packed" },
 
     // IN_LLVM: LDC-specific pragmas
     { "LDC_intrinsic" },
@@ -624,6 +627,7 @@ immutable Msgtable[] msgtable =
     { "udaHidden", "_hidden" },
     { "udaNoSanitize", "noSanitize" },
     { "udaNoSplitStack", "_noSplitStack" },
+    { "udaSwiftStub", "swift"},
 
     // IN_LLVM: DCompute specific types and functionss
     { "dcompute" },

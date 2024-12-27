@@ -60,6 +60,10 @@ llvm::Type *getRealType(const llvm::Triple &triple) {
 #endif // LDC_LLVM_VER >= 1600
     return LLType::getFP128Ty(ctx);
 
+  case Triple::wasm32:
+  case Triple::wasm64:
+    return LLType::getFP128Ty(ctx);
+
   default:
     // 64-bit double precision for all other targets
     // FIXME: PowerPC, SystemZ, ...
@@ -339,4 +343,32 @@ bool Target::isCalleeDestroyingArgs(TypeFunction* tf) {
 bool Target::supportsLinkerDirective() const {
   return global.params.targetTriple->isWindowsMSVCEnvironment() ||
          global.params.targetTriple->isOSBinFormatMachO();
+}
+
+bool TargetC::contributesToAggregateAlignment(BitFieldDeclaration *bfd) {
+  if (bitFieldStyle == BitFieldStyle::MS)
+    return true;
+
+  if (bitFieldStyle == BitFieldStyle::Gcc_Clang) {
+    // special case for most ARM ABIs:
+    // anonymous (incl. 0-length) bit-fields are NOT ignored
+    // (see e.g. https://github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst#1018bit-fields)
+    const auto &triple = *global.params.targetTriple;
+    switch (triple.getArch()) {
+    case llvm::Triple::arm:
+    case llvm::Triple::armeb:
+    case llvm::Triple::thumb: // TODO: correct?
+      return true;
+
+    case llvm::Triple::aarch64:
+    case llvm::Triple::aarch64_be:
+      // Apple diverges
+      return !triple.isOSDarwin() || !bfd->isAnonymous();
+
+    default:
+      return !bfd->isAnonymous();
+    }
+  }
+
+  llvm_unreachable("Unsupported bit-field style");
 }

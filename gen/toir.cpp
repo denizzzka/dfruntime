@@ -97,7 +97,7 @@ static void write_struct_literal(Loc loc, LLValue *mem, StructDeclaration *sd,
 
     // Skip zero-sized fields such as zero-length static arrays: `ubyte[0]
     // data`.
-    if (field->type->size() == 0)
+    if (size(field->type) == 0)
       continue;
 
     // the initializer expression may be null for overridden overlapping fields
@@ -139,7 +139,7 @@ static void write_struct_literal(Loc loc, LLValue *mem, StructDeclaration *sd,
       // get a pointer to this group's IR field
       const auto ptr = DtoLVal(DtoIndexAggregate(mem, sd, vd));
 
-      // merge all initializers to a single value
+      // merge all initializers to a single integer value
       const auto intType =
           LLIntegerType::get(gIR->context(), group.sizeInBytes * 8);
       LLValue *val = LLConstant::getNullValue(intType);
@@ -165,6 +165,7 @@ static void write_struct_literal(Loc loc, LLValue *mem, StructDeclaration *sd,
       }
 
       IF_LOG Logger::cout() << "merged IR value: " << *val << '\n';
+      // TODO: byte-swap val for big-endian targets?
       gIR->ir->CreateAlignedStore(val, ptr, llvm::MaybeAlign(1));
       offset += group.sizeInBytes;
 
@@ -324,6 +325,30 @@ public:
         pushVarDtorCleanup(p, vd);
       }
     }
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  void visit(ObjcClassReferenceExp *e) override {
+    IF_LOG Logger::print("ObjcClassReferenceExp::toElem: %s @ %s\n", e->toChars(),
+                         e->type->toChars());
+    LOG_SCOPE;
+
+    auto lType = DtoType(e->type);
+
+    if (auto iface = e->classDeclaration->isInterfaceDeclaration()) {
+
+      // Protocols
+      result = new DImValue(e->type, gIR->objc.deref(iface, lType));
+      return;
+    } else {
+
+      // Classes
+      result = new DImValue(e->type, gIR->objc.deref(e->classDeclaration, lType));
+      return;
+    }
+
+    llvm_unreachable("Unknown type for ObjcClassReferenceExp.");
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -795,12 +820,12 @@ public:
       if (canEmitVTableUnchangedAssumption && !dfnval->vtable &&
           dfnval->vthis && dfnval->func->isVirtual()) {
         dfnval->vtable =
-            DtoLoad(getVoidPtrType(), dfnval->vthis, "saved_vtable");
+            DtoLoad(getOpaquePtrType(), dfnval->vthis, "saved_vtable");
       }
     }
 
     DValue *result =
-        DtoCallFunction(e->loc, e->type, fnval, e->arguments, sretPointer);
+        DtoCallFunction(e->loc, e->type, fnval, e->arguments, sretPointer, e->directcall);
 
     if (canEmitVTableUnchangedAssumption && dfnval->vtable) {
       // Reload vtable ptr. It's the first element so instead of GEP+load we can
@@ -808,7 +833,7 @@ public:
       // access to the type of the class to do a GEP).
       auto vtable = DtoLoad(dfnval->vtable->getType(), dfnval->vthis);
       auto cmp = p->ir->CreateICmpEQ(vtable, dfnval->vtable);
-      p->ir->CreateCall(GET_INTRINSIC_DECL(assume), {cmp});
+      p->ir->CreateCall(GET_INTRINSIC_DECL(assume, {}), {cmp});
     }
 
     if (delayedDtorVar) {
@@ -1016,10 +1041,9 @@ public:
     auto &PGO = gIR->funcGen().pgo;
     PGO.setCurrentStmt(e);
 
-    DValue *l = toElem(e->e1);
-
     Type *e1type = e->e1->type->toBasetype();
 
+    DValue *l = toElem(e->e1);
     if (VarDeclaration *vd = e->var->isVarDeclaration()) {
       AggregateDeclaration *ad;
       LLValue *aggrPtr;
@@ -1765,7 +1789,7 @@ public:
     p->ir->SetInsertPoint(failedbb);
 
     if (global.params.checkAction == CHECKACTION_halt) {
-      p->ir->CreateCall(GET_INTRINSIC_DECL(trap), {});
+      p->ir->CreateCall(GET_INTRINSIC_DECL(trap, {}), {});
       p->ir->CreateUnreachable();
     } else {
       /* DMD Bugzilla 8360: If the condition is evaluated to true,
@@ -1922,7 +1946,7 @@ public:
     IF_LOG Logger::print("HaltExp::toElem: %s\n", e->toChars());
     LOG_SCOPE;
 
-    p->ir->CreateCall(GET_INTRINSIC_DECL(trap), {});
+    p->ir->CreateCall(GET_INTRINSIC_DECL(trap, {}), {});
     p->ir->CreateUnreachable();
 
     // this terminated the basicblock, start a new one
@@ -2319,8 +2343,7 @@ public:
     // don't allocate storage for zero length dynamic array literals
     if (dyn && len == 0) {
       // dmd seems to just make them null...
-      result = new DSliceValue(e->type, DtoConstSize_t(0),
-                               getNullPtr(getPtrToType(llElemType)));
+      result = new DSliceValue(e->type, DtoConstSize_t(0), getNullPtr());
       return;
     }
 
